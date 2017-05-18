@@ -13,17 +13,6 @@ import time
 import sys
 import traceback
 
-import voluptuous as vol
-
-from homeassistant.core import HomeAssistant  # noqa
-from homeassistant.const import (
-    CONF_HOST, CONF_CODE,
-    EVENT_HOMEASSISTANT_STOP)
-from homeassistant.helpers import discovery, config_validation as cv
-from homeassistant.helpers.entity import Entity
-from homeassistant.helpers.typing import ConfigType, Dict # noqa
-
-
 DOMAIN = "elkm1"
 REQUIREMENTS = []
 
@@ -31,20 +20,13 @@ ELK = None
 
 _LOGGER = logging.getLogger(__name__)
 
-CONFIG_SCHEMA = vol.Schema({
-    DOMAIN: vol.Schema({
-        vol.Required(CONF_HOST): cv.string,
-        vol.Required(CONF_CODE): cv.string
-    })
-}, extra=vol.ALLOW_EXTRA)
-
 SUPPORTED_DOMAINS = ['binary_sensor', 'sensor']
 
 """Set up the Elk M1 platform."""
 
-#code = '1234'
+code = '1234'
 #host = 'loop://'
-#host = 'socket://1.2.3.4:2101'
+host = 'socket://1.2.3.4:2101'
 
 """
 Internal PyElk
@@ -909,9 +891,8 @@ class LineHandler(serial.threaded.LineReader):
 
     # Implement Protocol class functions for Threaded Serial
     def connection_made(self, transport):
-        _LOGGER.error('Calling super connection_made')
         super(LineHandler, self).connection_made(transport)
-        #_LOGGER.error('Setting _connected True')
+        sys.stdout.write('port opened\n')
         #self._pyelk._connected = True
 
     def handle_line(self, data):
@@ -919,10 +900,10 @@ class LineHandler(serial.threaded.LineReader):
         self._pyelk.elk_event_enqueue(data)
 
     def connection_lost(self, exc):
-        _LOGGER.error('Lost connection')
         if exc:
             traceback.print_exc(exc)
         self._pyelk._connected = False
+        sys.stdout.write('port closed\n')
 
 class PyElk(object):
     """
@@ -1268,32 +1249,17 @@ class PyElk(object):
 End internal PyElk
 """
 
-def setup(hass: HomeAssistant, config: ConfigType) -> bool:
-    """Set up the Elk M1 platform."""
-    elk_config = config.get(DOMAIN)
+ELK = PyElk(address=host, usercode=code, log=_LOGGER)
+time.sleep(1)
+versions = ELK.get_version()
+from pprint import pprint
+pprint(versions)
+#for o in range(0,208):
+#    sys.stdout.write('Output {}: '.format(repr(ELK.OUTPUTS[o].description())))
+#    sys.stdout.write('{}\n'.format(repr(ELK.OUTPUTS[o].status())))
 
-    code = elk_config.get(CONF_CODE)
-    host = elk_config.get(CONF_HOST)
-
-    # Connect to Elk panel
-
-    ELK = PyElk(address=host, usercode=code, log=_LOGGER)
-
-    if not ELK.connected:
-        return False
-
-    # Listen for HA stop to disconnect.
-    hass.bus.listen_once(EVENT_HOMEASSISTANT_STOP, stop)
-
-    # Load platforms for the devices in the Elk panel that we support.
-    for component in SUPPORTED_DOMAINS:
-        discovery.load_platform(hass, component, DOMAIN, {}, config)
-
-    ELK.auto_update = True
-    return True
-
-def stop(event: object) -> None:
-    """Stop auto updates"""
-    ELK.auto_update = False
-
+#sys.stdout.write('Output count {}\n'.format(repr(len(ELK.OUTPUTS))))
+while True:
+    ELK.update()
+    time.sleep(1)
 
