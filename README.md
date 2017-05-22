@@ -1,7 +1,7 @@
 # ha-elkm1
 Home Assistant component, platforms for Elk M1 Gold and similar alarm / integration panels
 
-For test_elkm1.py just edit the code and host variables accordingly (though only host currently matters)
+Uses https://github.com/BioSehnsucht/pyelk / https://pypi.python.org/pypi/PyElk
 
 For the actual HA component, add something along these lines to your configuration YAML :
 
