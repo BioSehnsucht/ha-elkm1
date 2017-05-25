@@ -5,7 +5,6 @@ Support for Elk zones as sensors.
 import logging
 from typing import Callable  # noqa
 
-import homeassistant.components.elkm1 as elkm1
 import PyElk
 
 from homeassistant.const import (TEMP_CELSIUS, TEMP_FAHRENHEIT, STATE_OFF, STATE_ON)
@@ -90,12 +89,12 @@ class ElkSensorDevice(Entity):
         """ Initialize zone sensor """
         self._zone = zone
         self._zone._update_callback = self.trigger_update
-        self._name = 'Zone ' + str(zone._number)
+        self._name = 'elk_zone_' + str(zone._number)
         self._state = None
 
     def trigger_update(self):
         _LOGGER.error('Triggering auto update of ' + str(self._zone._number))
-        self.schedule_update_ha_state()
+        self.schedule_update_ha_state(True)
     
     @property
     def name(self):
@@ -126,6 +125,6 @@ class ElkSensorDevice(Entity):
             'State' : self._zone.state(),
             'Alarm' : self._zone.alarm(),
             'Definition' : self._zone.definition(),
-            'Friendly Name' : self._zone.description()
+            'friendly_name' : self._zone.description()
             }
     

@@ -24,7 +24,7 @@ from homeassistant.helpers.typing import ConfigType, Dict # noqa
 
 
 DOMAIN = "elkm1"
-REQUIREMENTS = ['PyElk==0.1.1.dev2']
+REQUIREMENTS = ['PyElk==0.1.1.dev4']
 
 ELK = None
 
@@ -37,13 +37,9 @@ CONFIG_SCHEMA = vol.Schema({
     })
 }, extra=vol.ALLOW_EXTRA)
 
-SUPPORTED_DOMAINS = ['binary_sensor', 'sensor']
+SUPPORTED_DOMAINS = ['sensor','switch']
 
 """Set up the Elk M1 platform."""
-
-#code = '1234'
-#host = 'loop://'
-#host = 'socket://1.2.3.4:2101'
 
 def setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Set up the Elk M1 platform."""
