@@ -31,12 +31,12 @@ def setup_platform(hass, config: ConfigType, add_devices: Callable[[list], None]
 
     for zone in elk.ZONES:
         if zone:
-            _LOGGER.error('Examining Zone: ' + str(zone._number))
+            _LOGGER.debug('Loading Elk Zone: %s', zone.description())
+            device = ElkSensorDevice(zone)
+            device._hidden = True
             if not ((zone._state == zone.STATE_UNCONFIGURED) and (zone._definition == zone.DEFINITION_DISABLED)):
-                _LOGGER.error('Loading Elk Zone%s', zone.description())
-                devices.append(ElkSensorDevice(zone))
-            else:
-                _LOGGER.error('Zone ' + str(zone._number) + ' is both unconfigured and disabled')
+                device._hidden = False
+            devices.append(device)
 
     add_devices(devices, True)
     return True
@@ -85,6 +85,8 @@ class ElkSensorDevice(Entity):
             PyElk.Zone.Zone.DEFINITION_INTERCOM_KEY : 'deskphone'
             }
 
+    _hidden = True
+
     def __init__(self, zone):
         """ Initialize zone sensor """
         self._zone = zone
@@ -93,7 +95,7 @@ class ElkSensorDevice(Entity):
         self._state = None
 
     def trigger_update(self):
-        _LOGGER.error('Triggering auto update of ' + str(self._zone._number))
+        _LOGGER.debug('Triggering auto update of zone ' + str(self._zone._number))
         self.schedule_update_ha_state(True)
     
     @property
@@ -104,7 +106,7 @@ class ElkSensorDevice(Entity):
     @property
     def state(self):
         """Return the state of the sensor"""
-        _LOGGER.error('Zone updating : ' + str(self._zone._number))
+        _LOGGER.debug('Zone updating : ' + str(self._zone._number))
         return self._state
 
     @property
@@ -116,6 +118,10 @@ class ElkSensorDevice(Entity):
         """Get the latest data and update the state."""
         self._zone._pyelk.update()
         self._state = self._zone.status()
+    
+    @property
+    def should_poll(self) -> bool:
+        return False
 
     @property
     def device_state_attributes(self):
@@ -125,6 +131,7 @@ class ElkSensorDevice(Entity):
             'State' : self._zone.state(),
             'Alarm' : self._zone.alarm(),
             'Definition' : self._zone.definition(),
-            'friendly_name' : self._zone.description()
+            'friendly_name' : self._zone.description(),
+            'hidden' : self._hidden
             }
     

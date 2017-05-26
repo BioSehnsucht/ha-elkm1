@@ -51,7 +51,7 @@ class ElkSwitchDevice(ToggleEntity):
         self._state = None
 
     def trigger_update(self):
-        _LOGGER.error('Triggering auto update of ' + str(self._output._number))
+        _LOGGER.debug('Triggering auto update of output ' + str(self._output._number))
         self.schedule_update_ha_state(True)
     
     @property
@@ -62,39 +62,49 @@ class ElkSwitchDevice(ToggleEntity):
     @property
     def state(self):
         """Return the state of the switch"""
-        _LOGGER.error('Output updating : ' + str(self._output._number))
+        _LOGGER.debug('Output updating : ' + str(self._output._number))
         return self._state
 
-    @property
-    def icon(self):
-        """Icon to use in the frontend, if any"""
-        return 'mdi:' + 'toggle-switch'
+#    @property
+#    def icon(self):
+#        """Icon to use in the frontend, if any"""
+#        return 'mdi:' + 'toggle-switch'
 
     def update(self):
         """Get the latest data and update the state."""
         self._output._pyelk.update()
-        self._state = self._output.status()
+        if (self.is_on):
+            self._state = STATE_ON
+        else:
+            self._state = STATE_OFF
 
     @property
     def device_state_attributes(self):
         """Return the state attributes of the switch."""
         return {
-            'Status' : self._output.status(),
+#            'Status' : self._output.status(),
             'friendly_name' : self._output.description()
             }
 
     @property
-    def is_on(self):
+    def is_on(self) -> bool:
         """Get whether the output is in the on state."""
-        return self._output._state == 1
+        if (self._output._status == self._output.STATUS_ON):
+            return True
+        return False
 
-    @property
-    def should_poll(self):
-        """We should be polled?"""
-        return True
+#    @property
+#    def should_poll(self):
+#        """We should be polled?"""
+#        return True
     
     def turn_on(self):
         self._output.turn_on()
 
     def turn_off(self):
         self._output.turn_off()
+
+    @property
+    def should_poll(self) -> bool:
+        return False
+                
