@@ -37,7 +37,7 @@ CONFIG_SCHEMA = vol.Schema({
     })
 }, extra=vol.ALLOW_EXTRA)
 
-SUPPORTED_DOMAINS = ['sensor','switch']
+SUPPORTED_DOMAINS = ['sensor','switch','alarm_control_panel']
 
 """Set up the Elk M1 platform."""
 
