@@ -1,8 +1,22 @@
 """
 Support the Elk M1 Gold, Elk M1 EZ8, etc alarm / integration panels
 
-For configuration details ...
-URL
+Uses https://github.com/BioSehnsucht/pyelk / https://pypi.python.org/pypi/PyElk
+
+For the actual HA component, add these lines to your configuration YAML :
+
+```python
+elkm1:
+  host: socket://1.2.3.4:2101
+  code: 1234
+```
+
+Currently only the non-secure port of Elk M1XEP (port 2101) is supported.
+Alarm code is currently not yet actually used, and may get removed.
+
+You can use ```host: /dev/ttyUSB0``` or such as well to speak to a directly 
+attached serial device
+
 """
 from collections import namedtuple
 from collections import deque
@@ -24,7 +38,7 @@ from homeassistant.helpers.typing import ConfigType, Dict # noqa
 
 
 DOMAIN = "elkm1"
-REQUIREMENTS = ['PyElk==0.1.1.dev7']
+REQUIREMENTS = ['PyElk==0.1.1.dev8']
 
 ELK = None
 
