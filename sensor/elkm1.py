@@ -42,7 +42,7 @@ def setup_platform(hass, config: ConfigType, add_devices: Callable[[list], None]
         if keypad:
             _LOGGER.debug('Loading Elk Keypad: %s', keypad.description())
             device = ElkSensorDevice(keypad)
-            if not (keypad._area == 0):
+            if (not keypad._area == 0) and (keypad._temp > -100):
                 device._hidden = False
             devices.append(device)
 
