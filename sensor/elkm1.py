@@ -42,7 +42,9 @@ def setup_platform(hass, config: ConfigType, add_devices: Callable[[list], None]
         if keypad:
             _LOGGER.debug('Loading Elk Keypad: %s', keypad.description())
             device = ElkSensorDevice(keypad)
-            if (keypad._temp > -100):
+            """Lowest reported temp is -40F, if it's reporting -40F we assume
+               it's not actually returning a valid temperature and hide it"""
+            if (keypad._temp > -40):
                 device._hidden = False
             devices.append(device)
 
