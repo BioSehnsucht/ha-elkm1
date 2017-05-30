@@ -38,7 +38,7 @@ from homeassistant.helpers.typing import ConfigType, Dict # noqa
 
 
 DOMAIN = "elkm1"
-REQUIREMENTS = ['PyElk==0.1.1.dev8']
+REQUIREMENTS = ['PyElk==0.1.1.dev9']
 
 ELK = None
 
