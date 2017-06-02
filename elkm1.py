@@ -1,5 +1,5 @@
 """
-Support the Elk M1 Gold, Elk M1 EZ8, etc alarm / integration panels
+Support the Elk M1 Gold, Elk M1 EZ8, etc alarm / integration panels.
 
 Uses https://github.com/BioSehnsucht/pyelk / https://pypi.python.org/pypi/PyElk
 
@@ -14,9 +14,8 @@ elkm1:
 Currently only the non-secure port of Elk M1XEP (port 2101) is supported.
 Alarm code is currently not yet actually used, and may get removed.
 
-You can use ```host: /dev/ttyUSB0``` or such as well to speak to a directly 
+You can use ```host: /dev/ttyUSB0``` or such as well to speak to a directly
 attached serial device
-
 """
 from collections import namedtuple
 from collections import deque
@@ -38,7 +37,7 @@ from homeassistant.helpers.typing import ConfigType, Dict # noqa
 
 
 DOMAIN = "elkm1"
-REQUIREMENTS = ['PyElk==0.1.1.dev11']
+REQUIREMENTS = ['PyElk==0.1.2.dev1']
 
 ELK = None
 
@@ -52,8 +51,6 @@ CONFIG_SCHEMA = vol.Schema({
 }, extra=vol.ALLOW_EXTRA)
 
 SUPPORTED_DOMAINS = ['sensor','switch','alarm_control_panel']
-
-"""Set up the Elk M1 platform."""
 
 def setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Set up the Elk M1 platform."""
@@ -83,6 +80,4 @@ def setup(hass: HomeAssistant, config: ConfigType) -> bool:
 
 def stop(event: object) -> None:
     """Stop auto updates"""
-    ELK.auto_update = False
-
-
+    #ELK.auto_update = False

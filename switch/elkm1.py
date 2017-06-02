@@ -41,28 +41,24 @@ def setup_platform(hass, config: ConfigType, add_devices: Callable[[list], None]
 
 
 class ElkSwitchDevice(ToggleEntity):
-    """ Elk Output as Switch """
+    """Elk Output as Toggle Switch."""
 
     def __init__(self, output):
-        """ Initialize output switch """
-        self._output = output
-        self._output._update_callback = self.trigger_update
-        self._name = 'elk_output_' + str(output._number)
+        """Initialize output switch."""
+        self._device = output
+        self._device._update_callback = self.trigger_update
+        self._name = 'elk_output_' + format(output._number,'03')
         self._state = None
 
-    def trigger_update(self):
-        _LOGGER.debug('Triggering auto update of output ' + str(self._output._number))
-        self.schedule_update_ha_state(True)
-    
     @property
     def name(self):
-        """Return the name of the switch"""
+        """Return the name of the switch."""
         return self._name
-    
+
     @property
     def state(self):
         """Return the state of the switch"""
-        _LOGGER.debug('Output updating : ' + str(self._output._number))
+        _LOGGER.debug('Output updating : ' + str(self._device._number))
         return self._state
 
 #    @property
@@ -70,9 +66,13 @@ class ElkSwitchDevice(ToggleEntity):
 #        """Icon to use in the frontend, if any"""
 #        return 'mdi:' + 'toggle-switch'
 
+    def trigger_update(self):
+        """Target of PyElk callback."""
+        _LOGGER.debug('Triggering auto update of output ' + str(self._device._number))
+        self.schedule_update_ha_state(True)
+
     def update(self):
         """Get the latest data and update the state."""
-        self._output._pyelk.update()
         if (self.is_on):
             self._state = STATE_ON
         else:
@@ -82,29 +82,24 @@ class ElkSwitchDevice(ToggleEntity):
     def device_state_attributes(self):
         """Return the state attributes of the switch."""
         return {
-#            'Status' : self._output.status(),
-            'friendly_name' : self._output.description()
+            'friendly_name' : self._device.description()
             }
 
     @property
     def is_on(self) -> bool:
-        """Get whether the output is in the on state."""
-        if (self._output._status == self._output.STATUS_ON):
+        """True if output in the on state."""
+        if (self._device._status == self._device.STATUS_ON):
             return True
         return False
-
-#    @property
-#    def should_poll(self):
-#        """We should be polled?"""
-#        return True
-    
-    def turn_on(self):
-        self._output.turn_on()
-
-    def turn_off(self):
-        self._output.turn_off()
 
     @property
     def should_poll(self) -> bool:
         return False
-                
+
+    def turn_on(self):
+        """Turn on output"""
+        self._device.turn_on()
+
+    def turn_off(self):
+        """Turn off output"""
+        self._device.turn_off()
