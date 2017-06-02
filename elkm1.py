@@ -37,9 +37,7 @@ from homeassistant.helpers.typing import ConfigType, Dict # noqa
 
 
 DOMAIN = "elkm1"
-REQUIREMENTS = ['PyElk==0.1.2.dev1']
-
-ELK = None
+REQUIREMENTS = ['PyElk==0.1.2.dev2']
 
 _LOGGER = logging.getLogger(__name__)
 
