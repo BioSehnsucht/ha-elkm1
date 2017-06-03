@@ -37,7 +37,7 @@ from homeassistant.helpers.typing import ConfigType, Dict # noqa
 
 
 DOMAIN = "elkm1"
-REQUIREMENTS = ['PyElk==0.1.2.dev2']
+REQUIREMENTS = ['PyElk==0.1.2.dev3']
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -48,7 +48,7 @@ CONFIG_SCHEMA = vol.Schema({
     })
 }, extra=vol.ALLOW_EXTRA)
 
-SUPPORTED_DOMAINS = ['sensor','switch','alarm_control_panel']
+SUPPORTED_DOMAINS = ['sensor','switch','alarm_control_panel','climate']
 
 def setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Set up the Elk M1 platform."""
