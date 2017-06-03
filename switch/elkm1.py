@@ -32,13 +32,13 @@ def setup_platform(hass, config: ConfigType, add_devices: Callable[[list], None]
     for output in elk.OUTPUTS:
         if output:
             _LOGGER.debug('Loading Elk Output : %s', output.description())
-            devices.append(ElkSwitchDevice(output))
+            devices.append(ElkOutputDevice(output))
 
     add_devices(devices, True)
     return True
 
 
-class ElkSwitchDevice(ToggleEntity):
+class ElkOutputDevice(ToggleEntity):
     """Elk Output as Toggle Switch."""
 
     def __init__(self, output):
