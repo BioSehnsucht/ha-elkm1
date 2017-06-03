@@ -104,7 +104,7 @@ class ElkSensorDevice(Entity):
         self._type = None
         self._hidden = True
         self._device = device
-        self._device._update_callback = self.trigger_update
+        self._device.callback_add(self.trigger_update)
         padding = 3
         if (isinstance(self._device, PyElk.Zone.Zone)):
             # If our device is a Zone, what kind?

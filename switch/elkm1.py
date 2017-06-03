@@ -17,8 +17,6 @@ from homeassistant.helpers.entity import ToggleEntity
 
 _LOGGER = logging.getLogger(__name__)
 
-elk = None
-
 def setup_platform(hass, config: ConfigType, add_devices: Callable[[list], None], discovery_info=None):
     """Setup the Elk switch platform."""
     elk = hass.data['PyElk']
@@ -46,7 +44,7 @@ class ElkSwitchDevice(ToggleEntity):
     def __init__(self, output):
         """Initialize output switch."""
         self._device = output
-        self._device._update_callback = self.trigger_update
+        self._device.callback_add(self.trigger_update)
         self._name = 'elk_output_' + format(output._number,'03')
         self._state = None
 

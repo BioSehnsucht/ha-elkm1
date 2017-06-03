@@ -26,8 +26,6 @@ from homeassistant.const import (
 
 _LOGGER = logging.getLogger(__name__)
 
-elk = None
-
 def setup_platform(hass, config: ConfigType, add_devices: Callable[[list], None], discovery_info=None):
     """Setup the Elk switch platform."""
     elk = hass.data['PyElk']
@@ -56,7 +54,7 @@ class ElkAreaDevice(alarm.AlarmControlPanel):
         self._state = None
         self._state_ext = ''
         self._hidden = False
-        self._device._update_callback = self.trigger_update
+        self._device.callback_add(self.trigger_update)
         self._name = 'elk_area_' + str(area._number)
         self.update()
 
