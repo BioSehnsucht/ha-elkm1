@@ -15,8 +15,6 @@ from homeassistant.helpers.typing import ConfigType
 
 _LOGGER = logging.getLogger(__name__)
 
-elk = None
-
 def setup_platform(hass, config: ConfigType, add_devices: Callable[[list], None], discovery_info=None):
     """Setup the Elk sensor platform."""
     elk = hass.data['PyElk']
@@ -153,7 +151,7 @@ class ElkSensorDevice(Entity):
     @property
     def unit_of_measurement(self) -> str:
         """Unit of measurement, if applicable"""
-        if (self._type == self.TYPE_ZONE_TEMP) or (self._type == self.TYPE_KEYPAD_TEMP):
+        if (self._type == self.TYPE_ZONE_TEMP) or (self._type == self.TYPE_KEYPAD_TEMP) or (self._type == self.TYPE_THERMOSTAT_TEMP):
             # Celcius conversion not implemented yet,
             # so only Fahrenheit supported
             return TEMP_FAHRENHEIT
