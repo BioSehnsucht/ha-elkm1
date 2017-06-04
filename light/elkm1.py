@@ -93,8 +93,8 @@ class ElkX10Device(Light):
         return {
             'friendly_name' : self._device.description(),
             'House Code' : self._device.HOUSE_STR[self._device._house],
-            'Device' : str(self._device._number + 1),
-            'unique_id' : self._device.HOUSE_STR[self._device._house] + str(self._device._number + 1),
+            'Device' : str(self._device._number),
+            'unique_id' : self._device.HOUSE_STR[self._device._house] + str(self._device._number),
             'hidden' : self._hidden,
             }
 
