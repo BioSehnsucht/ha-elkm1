@@ -113,7 +113,9 @@ class ElkClimateDevice(ClimateDevice):
 
     def update(self):
         """Get the latest data and update the state."""
-        self._device.request_temp()
+        if self._device.age() > 5:
+            # Only poll device if last update was more than 5 seconds ago
+            self._device.request_temp()
         return
 
     @property
