@@ -76,7 +76,7 @@ class ElkX10Device(Light):
 
     def trigger_update(self):
         """Target of PyElk callback."""
-        _LOGGER.debug('Triggering auto update of X10 ' + device.HOUSE_STR[device._house] + ' ' + str(self._device._number))
+        _LOGGER.debug('Triggering auto update of X10 ' + self._device.HOUSE_STR[self._device._house] + ' ' + str(self._device._number))
         self.schedule_update_ha_state(True)
 
     def update(self):
