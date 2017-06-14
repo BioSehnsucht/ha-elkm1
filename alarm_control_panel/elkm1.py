@@ -85,6 +85,12 @@ class ElkAreaDevice(alarm.AlarmControlPanel):
             'State' : self._state,
             'Alarm' : self._device.alarm(),
             'friendly_name' : self._device.description(),
+            'last_armed_by_user' : self._device._last_armed_by_user,
+            'last_armed_at' : self._device._last_armed_at,
+            'last_disarmed_by_user' : self._device._last_disarmed_by_user,
+            'last_disarmed_at' : self._device._last_disarmed_at,
+            'last_user_code' : self._device._last_user_code,
+            'last_user_at' : self._device._last_user_at,
             }
 
     def trigger_update(self):
