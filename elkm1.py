@@ -38,7 +38,7 @@ from homeassistant.helpers.typing import ConfigType, Dict # noqa
 
 
 DOMAIN = "elkm1"
-REQUIREMENTS = ['PyElk==0.1.6.dev1']
+REQUIREMENTS = ['PyElk==0.1.6.dev3']
 
 CONF_AREA = 'area'
 CONF_COUNTER = 'counter'
@@ -135,6 +135,8 @@ def setup(hass: HomeAssistant, config: ConfigType) -> bool:
     config = CONFIG_SCHEMA(config)
 
     elk_config = config.get(DOMAIN)
+
+    _LOGGER.error('Elk config : %s', elk_config)
 
     code = elk_config.get(CONF_CODE)
     host = elk_config.get(CONF_HOST)

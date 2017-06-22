@@ -29,21 +29,31 @@ def setup_platform(hass, config: ConfigType, add_devices: Callable[[list], None]
     # Add all Zones as sensors
     for zone in elk.ZONES:
         if zone:
-            _LOGGER.debug('Loading Elk Zone: %s', zone.description())
-            device = ElkSensorDevice(zone)
-            devices.append(device)
+            if zone._included == True:
+                _LOGGER.debug('Loading Elk Zone: %s', zone.description())
+                device = ElkSensorDevice(zone)
+                devices.append(device)
+            else:
+                _LOGGER.debug('Skipping excluded Elk Zone: %s', zone._number)
+
     # Add all Keypads as temperature sensors
     for keypad in elk.KEYPADS:
         if keypad:
-            _LOGGER.debug('Loading Elk Keypad: %s', keypad.description())
-            device = ElkSensorDevice(keypad)
-            devices.append(device)
+            if keypad._included == True:
+                _LOGGER.debug('Loading Elk Keypad: %s', keypad.description())
+                device = ElkSensorDevice(keypad)
+                devices.append(device)
+            else:
+                _LOGGER.debug('Skipping excluded Elk Keypad: %s', keypad._number)
     # Add all Thermostats as temperature sensors
     for thermostat in elk.THERMOSTATS:
         if thermostat:
-            _LOGGER.debug('Loading Elk Thermostat as Sensor: %s', thermostat.description())
-            device = ElkSensorDevice(thermostat)
-            devices.append(device)
+            if thermostat._included == True:
+                _LOGGER.debug('Loading Elk Thermostat as Sensor: %s', thermostat.description())
+                device = ElkSensorDevice(thermostat)
+                devices.append(device)
+            else:
+                _LOGGER.debug('Skipping excluded Elk Thermostat Sensor: %s', thermostat._number)
 
     add_devices(devices, True)
     return True

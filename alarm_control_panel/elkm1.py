@@ -40,8 +40,11 @@ def setup_platform(hass, config: ConfigType, add_devices: Callable[[list], None]
 
     for area in elk.AREAS:
         if area:
-            _LOGGER.debug('Loading Elk Area : %s', area.description())
-            devices.append(ElkAreaDevice(area))
+            if area._included == True:
+                _LOGGER.debug('Loading Elk Area : %s', area.description())
+                devices.append(ElkAreaDevice(area))
+            else:
+                _LOGGER.debug('Skipping excluded Elk Area: %s', area._number)
 
     add_devices(devices, True)
     return True

@@ -32,8 +32,11 @@ def setup_platform(hass, config: ConfigType, add_devices: Callable[[list], None]
 
     for device in elk.X10:
         if device:
-            _LOGGER.debug('Loading Elk X10 : %s', device.description())
-            devices.append(ElkX10Device(device))
+            if device._included == True:
+                _LOGGER.debug('Loading Elk X10 : %s', device.description())
+                devices.append(ElkX10Device(device))
+            else:
+                _LOGGER.debug('Skipping excluded Elk X10: %s %s', device.housecode_from_int(device._number))
 
     add_devices(devices, True)
     return True
