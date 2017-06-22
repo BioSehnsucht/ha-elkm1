@@ -156,7 +156,8 @@ class ElkTaskDevice(ToggleEntity):
     def device_state_attributes(self):
         """Return the state attributes of the switch."""
         return {
-            'friendly_name' : self._device.description()
+            'friendly_name' : self._device.description(),
+            'last_activated' : self._device._last_activated,
             }
 
     @property
