@@ -161,6 +161,11 @@ class ElkTaskDevice(ToggleEntity):
             }
 
     @property
+    def assumed_state(self):
+        """Return if the state is based on assumptions."""
+        return False
+
+    @property
     def is_on(self) -> bool:
         """True if output in the on state."""
         if (self._device._status == self._device.STATUS_ON):

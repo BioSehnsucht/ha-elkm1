@@ -38,7 +38,7 @@ def setup_platform(hass, config: ConfigType, add_devices: Callable[[list], None]
                 device = ElkClimateDevice(thermostat)
                 devices.append(device)
             else:
-                _LOGGER.debug('Skipping excluded Elk Thermostat: %s', device._number)
+                _LOGGER.debug('Skipping excluded Elk Thermostat: %s', thermostat._number)
 
     add_devices(devices, True)
     return True
