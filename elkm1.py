@@ -38,7 +38,7 @@ from homeassistant.helpers.typing import ConfigType, Dict # noqa
 
 
 DOMAIN = "elkm1"
-REQUIREMENTS = ['PyElk==0.1.6.dev3']
+REQUIREMENTS = ['PyElk==0.1.6.dev5']
 
 CONF_AREA = 'area'
 CONF_COUNTER = 'counter'

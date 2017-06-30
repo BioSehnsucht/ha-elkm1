@@ -122,7 +122,7 @@ class ElkTaskDevice(ToggleEntity):
         self._device = task
         self._device.callback_add(self.trigger_update)
         self._name = 'elk_task_' + format(task._number,'03')
-        self._state = None
+        self._state = STATE_OFF
 
     @property
     def name(self):
@@ -142,7 +142,7 @@ class ElkTaskDevice(ToggleEntity):
 
     def trigger_update(self):
         """Target of PyElk callback."""
-        _LOGGER.debug('Triggering auto update of output ' + str(self._device._number))
+        _LOGGER.debug('Triggering auto update of task ' + str(self._device._number))
         self.schedule_update_ha_state(True)
 
     def update(self):
@@ -170,7 +170,8 @@ class ElkTaskDevice(ToggleEntity):
         """True if output in the on state."""
         if (self._device._status == self._device.STATUS_ON):
             return True
-        return False
+        else:
+            return False
 
     @property
     def should_poll(self) -> bool:
