@@ -6,11 +6,7 @@ import logging
 from typing import Callable  # noqa
 import math
 
-import PyElk
-
-from homeassistant.const import (TEMP_CELSIUS, TEMP_FAHRENHEIT, STATE_OFF, STATE_ON)
-
-from homeassistant.helpers.entity import Entity
+from homeassistant.const import (STATE_OFF, STATE_ON)
 
 from homeassistant.helpers.typing import ConfigType
 
@@ -18,7 +14,8 @@ from homeassistant.components.light import (Light, ATTR_BRIGHTNESS, SUPPORT_BRIG
 
 _LOGGER = logging.getLogger(__name__)
 
-def setup_platform(hass, config: ConfigType, add_devices: Callable[[list], None], discovery_info=None):
+def setup_platform(hass, config: ConfigType,
+                   add_devices: Callable[[list], None], discovery_info=None):
     """Setup the Elk switch platform."""
     elk = hass.data['PyElk']
     if elk is None:
@@ -32,11 +29,12 @@ def setup_platform(hass, config: ConfigType, add_devices: Callable[[list], None]
 
     for device in elk.X10:
         if device:
-            if device._included == True:
+            if device._included is True:
                 _LOGGER.debug('Loading Elk X10 : %s', device.description())
                 devices.append(ElkX10Device(device))
             else:
-                _LOGGER.debug('Skipping excluded Elk X10: %s %s', device.housecode_from_int(device._number))
+                house, code = device.housecode_from_int(device._number)
+                _LOGGER.debug('Skipping excluded Elk X10: %s %s', house, code)
 
     add_devices(devices, True)
     return True
@@ -48,8 +46,10 @@ class ElkX10Device(Light):
         """Initialize X10 switch."""
         self._device = device
         self._device.callback_add(self.trigger_update)
-        self._name = 'elk_x10_' + device.HOUSE_STR[device._house] + '_' + format(device._number,'02')
+        self._name = 'elk_x10_' + device.HOUSE_STR[device._house] + '_' +\
+        format(device._number, '02')
         self._state = None
+        self._hidden = not self._device._enabled
 
     @property
     def name(self):
@@ -79,12 +79,14 @@ class ElkX10Device(Light):
 
     def trigger_update(self):
         """Target of PyElk callback."""
-        _LOGGER.debug('Triggering auto update of X10 ' + self._device.HOUSE_STR[self._device._house] + ' ' + str(self._device._number))
+        _LOGGER.debug('Triggering auto update of X10 '\
+                      + self._device.HOUSE_STR[self._device._house]\
+                      + ' ' + str(self._device._number))
         self.schedule_update_ha_state(True)
 
     def update(self):
         """Get the latest data and update the state."""
-        if (self.is_on):
+        if self.is_on:
             self._state = STATE_ON
         else:
             self._state = STATE_OFF
@@ -104,7 +106,8 @@ class ElkX10Device(Light):
     @property
     def is_on(self) -> bool:
         """True if output in the on state."""
-        if (self._device._status == self._device.STATUS_ON) or (self._device._status == self._device.STATUS_DIMMED):
+        if (self._device._status == self._device.STATUS_ON)\
+        or (self._device._status == self._device.STATUS_DIMMED):
             return True
         return False
 

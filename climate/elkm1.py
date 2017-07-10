@@ -7,19 +7,20 @@ from typing import Callable  # noqa
 
 from homeassistant.helpers.typing import ConfigType
 
-from homeassistant.components.climate import *
-from homeassistant.components.homematic import HMDevice, ATTR_DISCOVER_DEVICES
+from homeassistant.components.climate import STATE_IDLE, STATE_HEAT, STATE_COOL, STATE_AUTO,\
+    STATE_FAN_ONLY, ATTR_TARGET_TEMP_LOW, ATTR_TARGET_TEMP_HIGH, ATTR_CURRENT_TEMPERATURE,\
+    PRECISION_WHOLE, ClimateDevice
 from homeassistant.util.temperature import convert
 from homeassistant.const import TEMP_FAHRENHEIT, STATE_UNKNOWN, ATTR_TEMPERATURE
 
-import PyElk
 from PyElk.Thermostat import Thermostat
 
 _LOGGER = logging.getLogger(__name__)
 
 STATE_HEAT_EMERGENCY = 'heat_emergency'
 
-def setup_platform(hass, config: ConfigType, add_devices: Callable[[list], None], discovery_info=None):
+def setup_platform(hass, config: ConfigType,
+                   add_devices: Callable[[list], None], discovery_info=None):
     """Setup the Elk climate platform."""
     elk = hass.data['PyElk']
     if elk is None:
@@ -33,12 +34,14 @@ def setup_platform(hass, config: ConfigType, add_devices: Callable[[list], None]
     # Add all Thermostats
     for thermostat in elk.THERMOSTATS:
         if thermostat:
-            if thermostat._included == True:
-                _LOGGER.debug('Loading Elk Thermostat as Climate device: %s', thermostat.description())
+            if thermostat._included is True:
+                _LOGGER.debug('Loading Elk Thermostat as Climate device: %s',
+                              thermostat.description())
                 device = ElkClimateDevice(thermostat)
                 devices.append(device)
             else:
-                _LOGGER.debug('Skipping excluded Elk Thermostat: %s', thermostat._number)
+                _LOGGER.debug('Skipping excluded Elk Thermostat: %s',
+                              thermostat._number)
 
     add_devices(devices, True)
     return True
@@ -50,7 +53,7 @@ class ElkClimateDevice(ClimateDevice):
         self._type = None
         self._device = device
         self._hidden = not self._device._enabled
-        self._name = 'elk_thermostat_' + format(device._number,'02')
+        self._name = 'elk_thermostat_' + format(device._number, '02')
         self._device.callback_add(self.trigger_update)
 
     def trigger_update(self):
@@ -80,7 +83,8 @@ class ElkClimateDevice(ClimateDevice):
     @property
     def state(self):
         """Return the current state."""
-        # We can't actually tell if it's actively running in any of these modes, just what mode is set
+        # We can't actually tell if it's actively running in any of these modes,
+        # just what mode is set
         if (self._device._mode == Thermostat.MODE_OFF) and (self._device._fan == Thermostat.FAN_ON):
             return STATE_FAN_ONLY
         elif self._device._mode == Thermostat.MODE_OFF:
@@ -93,8 +97,7 @@ class ElkClimateDevice(ClimateDevice):
             return STATE_AUTO
         elif self._device._mode == Thermostat.MODE_HEAT_EMERGENCY:
             return STATE_HEAT_EMERGENCY
-        else:
-            return STATE_UNKNOWN
+        return STATE_UNKNOWN
 
     @property
     def precision(self):
@@ -162,7 +165,8 @@ class ElkClimateDevice(ClimateDevice):
     @property
     def current_operation(self):
         """Return current operation ie. heat, cool, idle."""
-        # We can't actually tell if it's actively running in any of these modes, just what mode is set
+        # We can't actually tell if it's actively running in any of these modes,
+        # just what mode is set
         if (self._device._mode == Thermostat.MODE_OFF) and (self._device._fan == Thermostat.FAN_ON):
             return STATE_FAN_ONLY
         elif self._device._mode == Thermostat.MODE_OFF:
@@ -175,8 +179,7 @@ class ElkClimateDevice(ClimateDevice):
             return STATE_AUTO
         elif self._device._mode == Thermostat.MODE_HEAT_EMERGENCY:
             return STATE_HEAT_EMERGENCY
-        else:
-            return STATE_UNKNOWN
+        return STATE_UNKNOWN
 
     @property
     def operation_list(self):
@@ -187,7 +190,7 @@ class ElkClimateDevice(ClimateDevice):
                 STATE_AUTO,
                 STATE_HEAT_EMERGENCY,
                 STATE_FAN_ONLY
-                ]
+               ]
 
     @property
     def target_temperature_step(self):
@@ -225,7 +228,7 @@ class ElkClimateDevice(ClimateDevice):
         """Return the list of available fan modes."""
         return [STATE_AUTO,
                 STATE_FAN_ONLY
-                ]
+               ]
 
     def set_fan_mode(self, fan):
         """Set new target fan mode."""

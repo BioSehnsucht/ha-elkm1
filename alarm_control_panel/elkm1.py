@@ -7,26 +7,18 @@ Each non-Empty Area will be created as a separate Alarm panel in HASS
 import logging
 from typing import Callable  # noqa
 
-import PyElk
-
-from homeassistant.const import (TEMP_CELSIUS, TEMP_FAHRENHEIT, STATE_OFF, STATE_ON)
-
-from homeassistant.helpers.entity import Entity
-
 from homeassistant.helpers.typing import ConfigType
 
-from homeassistant.helpers.entity import ToggleEntity
-
 import homeassistant.components.alarm_control_panel as alarm
-from homeassistant.components.alarm_control_panel import PLATFORM_SCHEMA
 from homeassistant.const import (
-        STATE_ALARM_ARMED_AWAY, STATE_ALARM_ARMED_HOME, STATE_ALARM_DISARMED
-        )
+    STATE_ALARM_ARMED_AWAY, STATE_ALARM_ARMED_HOME, STATE_ALARM_DISARMED
+    )
 
 
 _LOGGER = logging.getLogger(__name__)
 
-def setup_platform(hass, config: ConfigType, add_devices: Callable[[list], None], discovery_info=None):
+def setup_platform(hass, config: ConfigType,
+                   add_devices: Callable[[list], None], discovery_info=None):
     """Setup the Elk switch platform."""
     elk = hass.data['PyElk']
     if elk is None:
@@ -40,7 +32,7 @@ def setup_platform(hass, config: ConfigType, add_devices: Callable[[list], None]
 
     for area in elk.AREAS:
         if area:
-            if area._included == True:
+            if area._included is True:
                 _LOGGER.debug('Loading Elk Area : %s', area.description())
                 devices.append(ElkAreaDevice(area))
             else:
@@ -104,28 +96,28 @@ class ElkAreaDevice(alarm.AlarmControlPanel):
     def update(self):
         """Get the latest data and update the state."""
         # Set status based on arm state
-        if (self._device._status == self._device.STATUS_DISARMED):
+        if self._device._status == self._device.STATUS_DISARMED:
             self._state = STATE_ALARM_DISARMED
-        elif (self._device._status == self._device.STATUS_ARMED_AWAY):
+        elif self._device._status == self._device.STATUS_ARMED_AWAY:
             self._state = STATE_ALARM_ARMED_AWAY
-        elif (self._device._status == self._device.STATUS_ARMED_STAY):
+        elif self._device._status == self._device.STATUS_ARMED_STAY:
             self._state = STATE_ALARM_ARMED_HOME
-        elif (self._device._state == self._device.STATUS_ARMED_STAY_INSTANT):
+        elif self._device._state == self._device.STATUS_ARMED_STAY_INSTANT:
             self._state = STATE_ALARM_ARMED_HOME
-        elif (self._device._state == self._device.STATUS_ARMED_NIGHT):
+        elif self._device._state == self._device.STATUS_ARMED_NIGHT:
             self._state = STATE_ALARM_ARMED_HOME
-        elif (self._device._state == self._device.STATUS_ARMED_NIGHT_INSTANT):
+        elif self._device._state == self._device.STATUS_ARMED_NIGHT_INSTANT:
             self._state = STATE_ALARM_ARMED_HOME
-        elif (self._device._state == self._device.STATUS_ARMED_VACATION):
+        elif self._device._state == self._device.STATUS_ARMED_VACATION:
             self._state = STATE_ALARM_ARMED_AWAY
         # If there's an entry / exit timer running, show that we're pending arming
-        if (self._device.timers_active == True):
-            self._state = STATE_ALARM_PENDING
+        if self._device.timers_active is True:
+            self._state = self._device.STATE_ALARM_PENDING
         # If alarm is triggered, show that instead
-        if (self._device.alarm_active == True):
-            self._state = STATE_ALARM_TRIGGERED
+        if self._device.alarm_active is True:
+            self._state = self._device.STATE_ALARM_TRIGGERED
         # If we should be hidden due to lack of member devices, hide us
-        if ((self._device.member_keypads == 0) and (self._device.member_zones == 0)):
+        if (self._device.member_keypads == 0) and (self._device.member_zones == 0):
             self._hidden = True
         return
 
