@@ -28,19 +28,19 @@ def setup_platform(hass, config: ConfigType,
 
     for output in elk.OUTPUTS:
         if output:
-            if output._included is True:
-                _LOGGER.debug('Loading Elk Output : %s', output.description())
+            if output.included is True:
+                _LOGGER.debug('Loading Elk Output : %s', output.description_pretty())
                 devices.append(ElkOutputDevice(output))
             else:
-                _LOGGER.debug('Skipping excluded Elk Output: %s', output._number)
+                _LOGGER.debug('Skipping excluded Elk Output: %s', output.number)
 
     for task in elk.TASKS:
         if task:
-            if task._included is True:
-                _LOGGER.debug('Loading Elk Task : %s', task.description())
+            if task.included is True:
+                _LOGGER.debug('Loading Elk Task : %s', task.description_pretty())
                 devices.append(ElkTaskDevice(task))
             else:
-                _LOGGER.debug('Skipping excluded Elk Task: %s', task._number)
+                _LOGGER.debug('Skipping excluded Elk Task: %s', task.number)
 
     add_devices(devices, True)
     return True
@@ -53,7 +53,7 @@ class ElkOutputDevice(ToggleEntity):
         """Initialize output switch."""
         self._device = output
         self._device.callback_add(self.trigger_update)
-        self._name = 'elk_output_' + format(output._number, '03')
+        self._name = 'elk_output_' + format(output.number, '03')
         self._state = None
 
     @property
@@ -64,7 +64,7 @@ class ElkOutputDevice(ToggleEntity):
     @property
     def state(self):
         """Return the state of the switch"""
-        _LOGGER.debug('Output updating : ' + str(self._device._number))
+        _LOGGER.debug('Output updating : ' + str(self._device.number))
         return self._state
 
 #    @property
@@ -74,7 +74,7 @@ class ElkOutputDevice(ToggleEntity):
 
     def trigger_update(self):
         """Target of PyElk callback."""
-        _LOGGER.debug('Triggering auto update of output ' + str(self._device._number))
+        _LOGGER.debug('Triggering auto update of output ' + str(self._device.number))
         self.schedule_update_ha_state(True)
 
     def update(self):
@@ -88,13 +88,13 @@ class ElkOutputDevice(ToggleEntity):
     def device_state_attributes(self):
         """Return the state attributes of the switch."""
         return {
-            'friendly_name' : self._device.description()
+            'friendly_name' : self._device.description_pretty()
             }
 
     @property
     def is_on(self) -> bool:
         """True if output in the on state."""
-        if self._device._status == self._device.STATUS_ON:
+        if self._device.status == self._device.STATUS_ON:
             return True
         return False
 
@@ -118,7 +118,7 @@ class ElkTaskDevice(ToggleEntity):
         """Initialize task switch."""
         self._device = task
         self._device.callback_add(self.trigger_update)
-        self._name = 'elk_task_' + format(task._number, '03')
+        self._name = 'elk_task_' + format(task.number, '03')
         self._state = STATE_OFF
 
     @property
@@ -129,7 +129,7 @@ class ElkTaskDevice(ToggleEntity):
     @property
     def state(self):
         """Return the state of the switch"""
-        _LOGGER.debug('Task updating : ' + str(self._device._number))
+        _LOGGER.debug('Task updating : ' + str(self._device.number))
         return self._state
 
 #    @property
@@ -139,7 +139,7 @@ class ElkTaskDevice(ToggleEntity):
 
     def trigger_update(self):
         """Target of PyElk callback."""
-        _LOGGER.debug('Triggering auto update of task ' + str(self._device._number))
+        _LOGGER.debug('Triggering auto update of task ' + str(self._device.number))
         self.schedule_update_ha_state(True)
 
     def update(self):
@@ -153,8 +153,8 @@ class ElkTaskDevice(ToggleEntity):
     def device_state_attributes(self):
         """Return the state attributes of the switch."""
         return {
-            'friendly_name' : self._device.description(),
-            'last_activated' : self._device._last_activated,
+            'friendly_name' : self._device.description_pretty(),
+            'last_activated' : self._device.last_activated,
             }
 
     @property
@@ -165,7 +165,7 @@ class ElkTaskDevice(ToggleEntity):
     @property
     def is_on(self) -> bool:
         """True if output in the on state."""
-        if self._device._status == self._device.STATUS_ON:
+        if self._device.status == self._device.STATUS_ON:
             return True
         return False
 

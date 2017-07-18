@@ -29,11 +29,11 @@ def setup_platform(hass, config: ConfigType,
 
     for device in elk.X10:
         if device:
-            if device._included is True:
-                _LOGGER.debug('Loading Elk X10 : %s', device.description())
+            if device.included is True:
+                _LOGGER.debug('Loading Elk X10 : %s', device.description_pretty())
                 devices.append(ElkX10Device(device))
             else:
-                house, code = device.housecode_from_int(device._number)
+                house, code = device.housecode_from_int(device.number)
                 _LOGGER.debug('Skipping excluded Elk X10: %s %s', house, code)
 
     add_devices(devices, True)
@@ -46,10 +46,10 @@ class ElkX10Device(Light):
         """Initialize X10 switch."""
         self._device = device
         self._device.callback_add(self.trigger_update)
-        self._name = 'elk_x10_' + device.HOUSE_STR[device._house] + '_' +\
-        format(device._number, '02')
+        self._name = 'elk_x10_' + device.house_pretty() + '_' +\
+        format(device.number, '02')
         self._state = None
-        self._hidden = not self._device._enabled
+        self._hidden = not self._device.enabled
 
     @property
     def name(self):
@@ -59,7 +59,7 @@ class ElkX10Device(Light):
     @property
     def state(self):
         """Return the state of the switch"""
-        _LOGGER.debug('X10 updating : ' + str(self._device._number))
+        _LOGGER.debug('X10 updating : ' + str(self._device.number))
         return self._state
 
     @property
@@ -80,8 +80,8 @@ class ElkX10Device(Light):
     def trigger_update(self):
         """Target of PyElk callback."""
         _LOGGER.debug('Triggering auto update of X10 '\
-                      + self._device.HOUSE_STR[self._device._house]\
-                      + ' ' + str(self._device._number))
+                      + self._device.house_pretty()\
+                      + ' ' + str(self._device.number))
         self.schedule_update_ha_state(True)
 
     def update(self):
@@ -90,24 +90,24 @@ class ElkX10Device(Light):
             self._state = STATE_ON
         else:
             self._state = STATE_OFF
-        self._hidden = not self._device._enabled
+        self._hidden = not self._device.enabled
 
     @property
     def device_state_attributes(self):
         """Return the state attributes of the switch."""
         return {
-            'friendly_name' : self._device.description(),
-            'House Code' : self._device.HOUSE_STR[self._device._house],
-            'Device' : str(self._device._number),
-            'unique_id' : self._device.HOUSE_STR[self._device._house] + str(self._device._number),
+            'friendly_name' : self._device.description_pretty(),
+            'House Code' : self._device.house_pretty(),
+            'Device' : str(self._device.number),
+            'unique_id' : self._device.house_pretty() + str(self._device.number),
             'hidden' : self._hidden,
             }
 
     @property
     def is_on(self) -> bool:
         """True if output in the on state."""
-        if (self._device._status == self._device.STATUS_ON)\
-        or (self._device._status == self._device.STATUS_DIMMED):
+        if (self._device.status == self._device.STATUS_ON)\
+        or (self._device.status == self._device.STATUS_DIMMED):
             return True
         return False
 

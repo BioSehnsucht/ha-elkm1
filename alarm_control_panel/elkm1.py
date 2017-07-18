@@ -32,11 +32,11 @@ def setup_platform(hass, config: ConfigType,
 
     for area in elk.AREAS:
         if area:
-            if area._included is True:
-                _LOGGER.debug('Loading Elk Area : %s', area.description())
+            if area.included is True:
+                _LOGGER.debug('Loading Elk Area : %s', area.description_pretty())
                 devices.append(ElkAreaDevice(area))
             else:
-                _LOGGER.debug('Skipping excluded Elk Area: %s', area._number)
+                _LOGGER.debug('Skipping excluded Elk Area: %s', area.number)
 
     add_devices(devices, True)
     return True
@@ -50,13 +50,13 @@ class ElkAreaDevice(alarm.AlarmControlPanel):
         self._state_ext = ''
         self._hidden = False
         self._device.callback_add(self.trigger_update)
-        self._name = 'elk_area_' + str(area._number)
+        self._name = 'elk_area_' + str(area.number)
         self.update()
 
     @property
     def name(self):
         """Return the name of the Area"""
-        return 'elk_area_' + str(self._device._number)
+        return 'elk_area_' + str(self._device.number)
 
     @property
     def code_format(self):
@@ -75,40 +75,40 @@ class ElkAreaDevice(alarm.AlarmControlPanel):
         """Return the state attributes of the sensor."""
         return {
             'hidden' : self._hidden,
-            'Readiness' : self._device.arm_up(),
-            'Status' : self._device.status(),
+            'Readiness' : self._device.arm_up_pretty(),
+            'Status' : self._device.status_pretty(),
             'State' : self._state,
-            'Alarm' : self._device.alarm(),
-            'friendly_name' : self._device.description(),
-            'last_armed_by_user' : self._device._last_armed_by_user,
-            'last_armed_at' : self._device._last_armed_at,
-            'last_disarmed_by_user' : self._device._last_disarmed_by_user,
-            'last_disarmed_at' : self._device._last_disarmed_at,
-            'last_user_code' : self._device._last_user_code,
-            'last_user_at' : self._device._last_user_at,
+            'Alarm' : self._device.alarm_pretty(),
+            'friendly_name' : self._device.description_pretty(),
+            'last_armed_by_user' : self._device.last_armed_by_user,
+            'last_armed_at' : self._device.last_armed_at,
+            'last_disarmed_by_user' : self._device.last_disarmed_by_user,
+            'last_disarmed_at' : self._device.last_disarmed_at,
+            'last_user_code' : self._device.last_user_code,
+            'last_user_at' : self._device.last_user_at,
             }
 
     def trigger_update(self):
         """Target of PyElk callback."""
-        _LOGGER.debug('Triggering auto update of area ' + str(self._device._number))
+        _LOGGER.debug('Triggering auto update of area ' + str(self._device.number))
         self.schedule_update_ha_state(True)
 
     def update(self):
         """Get the latest data and update the state."""
         # Set status based on arm state
-        if self._device._status == self._device.STATUS_DISARMED:
+        if self._device.status == self._device.STATUS_DISARMED:
             self._state = STATE_ALARM_DISARMED
-        elif self._device._status == self._device.STATUS_ARMED_AWAY:
+        elif self._device.status == self._device.STATUS_ARMED_AWAY:
             self._state = STATE_ALARM_ARMED_AWAY
-        elif self._device._status == self._device.STATUS_ARMED_STAY:
+        elif self._device.status == self._device.STATUS_ARMED_STAY:
             self._state = STATE_ALARM_ARMED_HOME
-        elif self._device._state == self._device.STATUS_ARMED_STAY_INSTANT:
+        elif self._device.status == self._device.STATUS_ARMED_STAY_INSTANT:
             self._state = STATE_ALARM_ARMED_HOME
-        elif self._device._state == self._device.STATUS_ARMED_NIGHT:
+        elif self._device.status == self._device.STATUS_ARMED_NIGHT:
             self._state = STATE_ALARM_ARMED_HOME
-        elif self._device._state == self._device.STATUS_ARMED_NIGHT_INSTANT:
+        elif self._device.status == self._device.STATUS_ARMED_NIGHT_INSTANT:
             self._state = STATE_ALARM_ARMED_HOME
-        elif self._device._state == self._device.STATUS_ARMED_VACATION:
+        elif self._device.status == self._device.STATUS_ARMED_VACATION:
             self._state = STATE_ALARM_ARMED_AWAY
         # If there's an entry / exit timer running, show that we're pending arming
         if self._device.timers_active is True:
@@ -117,7 +117,7 @@ class ElkAreaDevice(alarm.AlarmControlPanel):
         if self._device.alarm_active is True:
             self._state = self._device.STATE_ALARM_TRIGGERED
         # If we should be hidden due to lack of member devices, hide us
-        if (self._device.member_keypads == 0) and (self._device.member_zones == 0):
+        if (self._device.member_keypads_count == 0) and (self._device.member_zones_count == 0):
             self._hidden = True
         return
 

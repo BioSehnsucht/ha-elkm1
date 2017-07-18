@@ -34,14 +34,14 @@ def setup_platform(hass, config: ConfigType,
     # Add all Thermostats
     for thermostat in elk.THERMOSTATS:
         if thermostat:
-            if thermostat._included is True:
+            if thermostat.included is True:
                 _LOGGER.debug('Loading Elk Thermostat as Climate device: %s',
-                              thermostat.description())
+                              thermostat.description_pretty())
                 device = ElkClimateDevice(thermostat)
                 devices.append(device)
             else:
                 _LOGGER.debug('Skipping excluded Elk Thermostat: %s',
-                              thermostat._number)
+                              thermostat.number)
 
     add_devices(devices, True)
     return True
@@ -52,13 +52,13 @@ class ElkClimateDevice(ClimateDevice):
         """Initialize device sensor."""
         self._type = None
         self._device = device
-        self._hidden = not self._device._enabled
-        self._name = 'elk_thermostat_' + format(device._number, '02')
+        self._hidden = not self._device.enabled
+        self._name = 'elk_thermostat_' + format(device.number, '02')
         self._device.callback_add(self.trigger_update)
 
     def trigger_update(self):
         """Target of PyElk callback."""
-        _LOGGER.debug('Triggering auto update of device ' + str(self._device._number))
+        _LOGGER.debug('Triggering auto update of device ' + str(self._device.number))
         self.schedule_update_ha_state(True)
 
     @property
@@ -74,7 +74,7 @@ class ElkClimateDevice(ClimateDevice):
     @property
     def current_temperature(self):
         """Return the current temperature."""
-        return self._device._temp
+        return self._device.temp
 
     @property
     def should_poll(self) -> bool:
@@ -85,17 +85,17 @@ class ElkClimateDevice(ClimateDevice):
         """Return the current state."""
         # We can't actually tell if it's actively running in any of these modes,
         # just what mode is set
-        if (self._device._mode == Thermostat.MODE_OFF) and (self._device._fan == Thermostat.FAN_ON):
+        if (self._device.mode == Thermostat.MODE_OFF) and (self._device.fan == Thermostat.FAN_ON):
             return STATE_FAN_ONLY
-        elif self._device._mode == Thermostat.MODE_OFF:
+        elif self._device.mode == Thermostat.MODE_OFF:
             return STATE_IDLE
-        elif self._device._mode == Thermostat.MODE_HEAT:
+        elif self._device.mode == Thermostat.MODE_HEAT:
             return STATE_HEAT
-        elif self._device._mode == Thermostat.MODE_COOL:
+        elif self._device.mode == Thermostat.MODE_COOL:
             return STATE_COOL
-        elif self._device._mode == Thermostat.MODE_AUTO:
+        elif self._device.mode == Thermostat.MODE_AUTO:
             return STATE_AUTO
-        elif self._device._mode == Thermostat.MODE_HEAT_EMERGENCY:
+        elif self._device.mode == Thermostat.MODE_HEAT_EMERGENCY:
             return STATE_HEAT_EMERGENCY
         return STATE_UNKNOWN
 
@@ -108,8 +108,8 @@ class ElkClimateDevice(ClimateDevice):
     def device_state_attributes(self):
         """Return the optional state attributes."""
         data = {
-            ATTR_CURRENT_TEMPERATURE: self._convert_for_display(self._device._temp),
-            'friendly_name': self._device.description(),
+            ATTR_CURRENT_TEMPERATURE: self._convert_for_display(self._device.temp),
+            'friendly_name': self._device.description_pretty(),
             'hidden': self._hidden,
             'operation': self.state,
             'fan': self.current_fan_mode,
@@ -132,12 +132,12 @@ class ElkClimateDevice(ClimateDevice):
     @property
     def current_humidity(self):
         """Return the current humidity."""
-        return self._device._humidity
+        return self._device.humidity
 
     @property
     def is_aux_heat_on(self):
         """Return true if aux heater."""
-        return self._device._mode == Thermostat.MODE_HEAT_EMERGENCY
+        return self._device.mode == Thermostat.MODE_HEAT_EMERGENCY
 
     @property
     def target_temperature(self):
@@ -147,12 +147,12 @@ class ElkClimateDevice(ClimateDevice):
     @property
     def target_temperature_high(self):
         """Return the highbound target temperature we try to reach."""
-        return self._device._setpoint_cool
+        return self._device.setpoint_cool
 
     @property
     def target_temperature_low(self):
         """Return the lowbound target temperature we try to reach."""
-        return self._device._setpoint_heat
+        return self._device.setpoint_heat
 
     @property
     def min_temp(self):
@@ -167,17 +167,17 @@ class ElkClimateDevice(ClimateDevice):
         """Return current operation ie. heat, cool, idle."""
         # We can't actually tell if it's actively running in any of these modes,
         # just what mode is set
-        if (self._device._mode == Thermostat.MODE_OFF) and (self._device._fan == Thermostat.FAN_ON):
+        if (self._device.mode == Thermostat.MODE_OFF) and (self._device.fan == Thermostat.FAN_ON):
             return STATE_FAN_ONLY
-        elif self._device._mode == Thermostat.MODE_OFF:
+        elif self._device.mode == Thermostat.MODE_OFF:
             return STATE_IDLE
-        elif self._device._mode == Thermostat.MODE_HEAT:
+        elif self._device.mode == Thermostat.MODE_HEAT:
             return STATE_HEAT
-        elif self._device._mode == Thermostat.MODE_COOL:
+        elif self._device.mode == Thermostat.MODE_COOL:
             return STATE_COOL
-        elif self._device._mode == Thermostat.MODE_AUTO:
+        elif self._device.mode == Thermostat.MODE_AUTO:
             return STATE_AUTO
-        elif self._device._mode == Thermostat.MODE_HEAT_EMERGENCY:
+        elif self._device.mode == Thermostat.MODE_HEAT_EMERGENCY:
             return STATE_HEAT_EMERGENCY
         return STATE_UNKNOWN
 
@@ -200,7 +200,7 @@ class ElkClimateDevice(ClimateDevice):
     @property
     def current_fan_mode(self):
         """Return the fan setting."""
-        return self._device.fan()
+        return self._device.fan
 
     def set_operation_mode(self, operation_mode):
         """Set mode."""

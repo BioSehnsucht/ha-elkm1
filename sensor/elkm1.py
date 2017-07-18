@@ -30,31 +30,31 @@ def setup_platform(hass, config: ConfigType,
     # Add all Zones as sensors
     for zone in elk.ZONES:
         if zone:
-            if zone._included is True:
-                _LOGGER.debug('Loading Elk Zone: %s', zone.description())
+            if zone.included is True:
+                _LOGGER.debug('Loading Elk Zone: %s', zone.description_pretty())
                 device = ElkSensorDevice(zone)
                 devices.append(device)
             else:
-                _LOGGER.debug('Skipping excluded Elk Zone: %s', zone._number)
+                _LOGGER.debug('Skipping excluded Elk Zone: %s', zone.number)
 
     # Add all Keypads as temperature sensors
     for keypad in elk.KEYPADS:
         if keypad:
-            if keypad._included is True:
-                _LOGGER.debug('Loading Elk Keypad: %s', keypad.description())
+            if keypad.included is True:
+                _LOGGER.debug('Loading Elk Keypad: %s', keypad.description_pretty())
                 device = ElkSensorDevice(keypad)
                 devices.append(device)
             else:
-                _LOGGER.debug('Skipping excluded Elk Keypad: %s', keypad._number)
+                _LOGGER.debug('Skipping excluded Elk Keypad: %s', keypad.number)
     # Add all Thermostats as temperature sensors
     for thermostat in elk.THERMOSTATS:
         if thermostat:
-            if thermostat._included is True:
-                _LOGGER.debug('Loading Elk Thermostat as Sensor: %s', thermostat.description())
+            if thermostat.included is True:
+                _LOGGER.debug('Loading Elk Thermostat as Sensor: %s', thermostat.description_pretty())
                 device = ElkSensorDevice(thermostat)
                 devices.append(device)
             else:
-                _LOGGER.debug('Skipping excluded Elk Thermostat Sensor: %s', thermostat._number)
+                _LOGGER.debug('Skipping excluded Elk Thermostat Sensor: %s', thermostat.number)
 
     add_devices(devices, True)
     return True
@@ -120,11 +120,11 @@ class ElkSensorDevice(Entity):
         if isinstance(self._device, PyElk.Zone.Zone):
             # If our device is a Zone, what kind?
             self._name = 'elk_zone_'
-            if self._device._definition == PyElk.Zone.Zone.DEFINITION_TEMPERATURE:
+            if self._device.definition == PyElk.Zone.Zone.DEFINITION_TEMPERATURE:
                 # Temperature Zone
                 self._type = self.TYPE_ZONE_TEMP
                 self._name = 'elk_temp_z_'
-            elif self._device._definition == PyElk.Zone.Zone.DEFINITION_ANALOG_ZONE:
+            elif self._device.definition == PyElk.Zone.Zone.DEFINITION_ANALOG_ZONE:
                 # Analog voltage Zone
                 self._type = self.TYPE_ZONE_VOLTAGE
                 self._name = 'elk_analog_z_'
@@ -141,12 +141,12 @@ class ElkSensorDevice(Entity):
             self._type = self.TYPE_THERMOSTAT_TEMP
             self._name = 'elk_temp_t_'
             padding = 2
-        self._name = self._name + format(device._number, '0' + str(padding))
+        self._name = self._name + format(device.number, '0' + str(padding))
         self._state = None
         if hasattr(self._device, '_temp_enabled'):
-            self._hidden = not self._device._temp_enabled
+            self._hidden = not self._device.temp_enabled
         else:
-            self._hidden = not self._device._enabled
+            self._hidden = not self._device.enabled
 
 
     @property
@@ -179,7 +179,7 @@ class ElkSensorDevice(Entity):
         """Icon to use in the frontend, if any."""
         if (self._type == self.TYPE_ZONE) or (self._type == self.TYPE_ZONE_TEMP)\
         or (self._type == self.TYPE_ZONE_VOLTAGE):
-            return 'mdi:' + self.ICON[self._device._definition]
+            return 'mdi:' + self.ICON[self._device.definition]
         elif (self._type == self.TYPE_KEYPAD_TEMP) or (self._type == self.TYPE_THERMOSTAT_TEMP):
             return 'mdi:' + self.ICON[PyElk.Zone.Zone.DEFINITION_TEMPERATURE]
         return None
@@ -197,35 +197,35 @@ class ElkSensorDevice(Entity):
         # If we're some kind of Zone, add Zone attributes
         if (self._type == self.TYPE_ZONE) or (self._type == self.TYPE_ZONE_TEMP)\
         or (self._type == self.TYPE_ZONE_VOLTAGE):
-            attributes['Status'] = self._device.status()
-            attributes['State'] = self._device.state()
-            attributes['Alarm'] = self._device.alarm()
-            attributes['Definition'] = self._device.definition()
-            attributes['friendly_name'] = self._device.description()
+            attributes['Status'] = self._device.status_pretty()
+            attributes['State'] = self._device.state_pretty()
+            attributes['Alarm'] = self._device.alarm_pretty()
+            attributes['Definition'] = self._device.definition_pretty()
+            attributes['friendly_name'] = self._device.description_pretty()
         # Otherwise just friendly name as applicable
         if self._type == self.TYPE_KEYPAD_TEMP:
-            attributes['friendly_name'] = 'Keypad ' + str(self._device._number) + ' Temp'
+            attributes['friendly_name'] = 'Keypad ' + str(self._device.number) + ' Temp'
         if self._type == self.TYPE_THERMOSTAT_TEMP:
-            attributes['friendly_name'] = 'Thermostat ' + str(self._device._number) + ' Temp'
+            attributes['friendly_name'] = 'Thermostat ' + str(self._device.number) + ' Temp'
         return attributes
 
     def trigger_update(self):
         """Target of PyElk callback."""
-        _LOGGER.debug('Triggering auto update of device ' + str(self._device._number))
+        _LOGGER.debug('Triggering auto update of device ' + str(self._device.number))
         self.schedule_update_ha_state(True)
 
     def update(self):
         """Get the latest data and update the state."""
         #self._device._pyelk.update()
         if hasattr(self._device, '_temp_enabled'):
-            self._hidden = not self._device._temp_enabled
+            self._hidden = not self._device.temp_enabled
         else:
-            self._hidden = not self._device._enabled
+            self._hidden = not self._device.enabled
         # Set state according to device type
         if self._type == self.TYPE_ZONE:
-            self._state = self._device.status()
+            self._state = self._device.status_pretty()
         elif (self._type == self.TYPE_ZONE_TEMP) or (self._type == self.TYPE_KEYPAD_TEMP)\
         or (self._type == self.TYPE_THERMOSTAT_TEMP):
-            self._state = self._device._temp
+            self._state = self._device.temp
         elif self._type == self.TYPE_ZONE_VOLTAGE:
             self._state = self._device.voltage
