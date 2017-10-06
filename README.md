@@ -3,12 +3,4 @@ Home Assistant component, platforms for Elk M1 Gold and similar alarm / integrat
 
 Uses https://github.com/BioSehnsucht/pyelk / https://pypi.python.org/pypi/PyElk
 
-For the actual HA component, add something along these lines to your configuration YAML :
-
-```
-elkm1:
-  host: socket://1.2.3.4:2101
-  code: 1234
-```
-
-You can use ```host: /dev/ttyUSB0``` or such as well
+See https://github.com/BioSehnsucht/home-assistant.github.io/blob/elk-m1/source/_components/elkm1.markdown for documentation (WIP)
