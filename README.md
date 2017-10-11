@@ -3,7 +3,7 @@ Home Assistant component, platforms for Elk M1 Gold and similar alarm / integrat
 
 Uses https://github.com/BioSehnsucht/pyelk / https://pypi.python.org/pypi/PyElk
 
-For documentation (WIP), see:
+For documentation (WIP - may be ahead of functionality released on Github), see:
 * https://github.com/BioSehnsucht/home-assistant.github.io/blob/elk-m1/source/_components/elkm1.markdown
 * https://github.com/BioSehnsucht/home-assistant.github.io/blob/elk-m1/source/_components/alarm_control_panel.elkm1.markdown
 * https://github.com/BioSehnsucht/home-assistant.github.io/blob/elk-m1/source/_components/binary_sensor.elkm1.markdown
