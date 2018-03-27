@@ -1,6 +1,4 @@
-"""
-Support for Elk outputs as switches, and task activation as switches.
-"""
+"""Support for Elk outputs as switches, and task activation as switches."""
 
 import logging
 from typing import Callable  # noqa
@@ -11,12 +9,16 @@ from homeassistant.helpers.typing import ConfigType
 
 from homeassistant.helpers.entity import ToggleEntity
 
+DEPENDENCIES = ['elkm1']
+
 _LOGGER = logging.getLogger(__name__)
 
+
 def setup_platform(hass, config: ConfigType,
-                   add_devices: Callable[[list], None], discovery_info=None):
+                   add_devices: Callable[[list], None], discovery_info=[]):
     """Setup the Elk switch platform."""
-    elk = hass.data['PyElk']
+    elk = hass.data['PyElk']['connection']
+    discovered_devices = hass.data['PyElk']['discovered_devices']
     if elk is None:
         _LOGGER.error('Elk is None')
         return False
@@ -25,22 +27,45 @@ def setup_platform(hass, config: ConfigType,
         return False
 
     devices = []
-
-    for output in elk.OUTPUTS:
-        if output:
-            if output.included is True:
-                _LOGGER.debug('Loading Elk Output : %s', output.description_pretty())
-                devices.append(ElkOutputDevice(output))
+    from PyElk.Output import Output as ElkOutput
+    from PyElk.Task import Task as ElkTask
+    # If no discovery info was passed in, discover automatically
+    if len(discovery_info) == 0:
+        # Gather outputs
+        for node in elk.OUTPUTS:
+            if node:
+                if node.included is True and node.enabled is True:
+                    discovery_info.append(node)
+        # Gather tasks
+        for node in elk.TASKS:
+            if node:
+                if node.included is True and node.enabled is True:
+                    discovery_info.append(node)
+    # If discovery info was passed in, check if we want to include it
+    else:
+        for node in discovery_info:
+            if node.included is True and node.enabled is True:
+                continue
             else:
-                _LOGGER.debug('Skipping excluded Elk Output: %s', output.number)
-
-    for task in elk.TASKS:
-        if task:
-            if task.included is True:
-                _LOGGER.debug('Loading Elk Task : %s', task.description_pretty())
-                devices.append(ElkTaskDevice(task))
-            else:
-                _LOGGER.debug('Skipping excluded Elk Task: %s', task.number)
+                discovery_info.remove(node)
+    # Add discovered devices
+    for node in discovery_info:
+        if isinstance(node, ElkOutput):
+            node_name = 'switch.' + 'elk_output_' + format(node.number, '03')
+        elif isinstance(node, ElkTask):
+            node_name = 'switch.' + 'elk_task_' + format(node.number, '03')
+        else:
+            continue
+        if node_name not in discovered_devices:
+            if isinstance(node, ElkOutput):
+                device = ElkOutputDevice(node)
+            if isinstance(node, ElkTask):
+                device = ElkTaskDevice(node)
+            _LOGGER.debug('Loading Elk %s: %s', node.classname, node.description_pretty())
+            discovered_devices[node_name] = device
+            devices.append(device)
+        else:
+            _LOGGER.debug('Skipping already loaded Elk %s: %s', node.classname, node.description_pretty())
 
     add_devices(devices, True)
     return True
@@ -52,18 +77,20 @@ class ElkOutputDevice(ToggleEntity):
     def __init__(self, output):
         """Initialize output switch."""
         self._device = output
-        self._device.callback_add(self.trigger_update)
         self._name = 'elk_output_' + format(output.number, '03')
+        self.entity_id = 'switch.' + self._name
         self._state = None
+        self._device.callback_add(self.trigger_update)
+        self.update()
 
     @property
     def name(self):
         """Return the name of the switch."""
-        return self._name
+        return self._device.description_pretty()
 
     @property
     def state(self):
-        """Return the state of the switch"""
+        """Return the state of the switch."""
         _LOGGER.debug('Output updating : ' + str(self._device.number))
         return self._state
 
@@ -74,7 +101,8 @@ class ElkOutputDevice(ToggleEntity):
 
     def trigger_update(self):
         """Target of PyElk callback."""
-        _LOGGER.debug('Triggering auto update of output ' + str(self._device.number))
+        _LOGGER.debug('Triggering auto update of output ' + str(
+            self._device.number))
         self.schedule_update_ha_state(True)
 
     def update(self):
@@ -83,12 +111,13 @@ class ElkOutputDevice(ToggleEntity):
             self._state = STATE_ON
         else:
             self._state = STATE_OFF
+        self._hidden = not self._device.enabled
 
     @property
     def device_state_attributes(self):
         """Return the state attributes of the switch."""
         return {
-            'friendly_name' : self._device.description_pretty()
+            'hidden': self._hidden,
             }
 
     @property
@@ -100,14 +129,15 @@ class ElkOutputDevice(ToggleEntity):
 
     @property
     def should_poll(self) -> bool:
+        """Return whether this device should be polled."""
         return False
 
     def turn_on(self):
-        """Turn on output"""
+        """Turn on output."""
         self._device.turn_on()
 
     def turn_off(self):
-        """Turn off output"""
+        """Turn off output."""
         self._device.turn_off()
 
 
@@ -117,18 +147,20 @@ class ElkTaskDevice(ToggleEntity):
     def __init__(self, task):
         """Initialize task switch."""
         self._device = task
-        self._device.callback_add(self.trigger_update)
         self._name = 'elk_task_' + format(task.number, '03')
-        self._state = STATE_OFF
+        self.entity_id = 'switch.' + self._name
+        self._state = None
+        self._device.callback_add(self.trigger_update)
+        self.update()
 
     @property
     def name(self):
         """Return the name of the switch."""
-        return self._name
+        return self._device.description_pretty()
 
     @property
     def state(self):
-        """Return the state of the switch"""
+        """Return the state of the switch."""
         _LOGGER.debug('Task updating : ' + str(self._device.number))
         return self._state
 
@@ -137,9 +169,10 @@ class ElkTaskDevice(ToggleEntity):
 #        """Icon to use in the frontend, if any"""
 #        return 'mdi:' + 'toggle-switch'
 
-    def trigger_update(self):
+    def trigger_update(self, node):
         """Target of PyElk callback."""
-        _LOGGER.debug('Triggering auto update of task ' + str(self._device.number))
+        _LOGGER.debug('Triggering auto update of task ' + str(
+            self._device.number))
         self.schedule_update_ha_state(True)
 
     def update(self):
@@ -148,13 +181,14 @@ class ElkTaskDevice(ToggleEntity):
             self._state = STATE_ON
         else:
             self._state = STATE_OFF
+        self._hidden = not self._device.enabled
 
     @property
     def device_state_attributes(self):
         """Return the state attributes of the switch."""
         return {
-            'friendly_name' : self._device.description_pretty(),
-            'last_activated' : self._device.last_activated,
+            'last_activated': self._device.last_activated,
+            'hidden': self._hidden,
             }
 
     @property
@@ -171,12 +205,13 @@ class ElkTaskDevice(ToggleEntity):
 
     @property
     def should_poll(self) -> bool:
+        """Return whether this device should be polled."""
         return False
 
     def turn_on(self):
-        """Turn on output"""
+        """Turn on output."""
         self._device.turn_on()
 
     def turn_off(self):
-        """Turn off output"""
+        """Turn off output."""
         self._device.turn_off()
