@@ -17,6 +17,7 @@ Alarm code is currently not yet actually used, and may get removed.
 You can use ```host: /dev/ttyUSB0``` or such as well to speak to a directly
 attached serial device
 """
+import asyncio
 import logging
 
 from functools import partial
@@ -33,7 +34,7 @@ from homeassistant.helpers.typing import ConfigType # noqa
 
 DOMAIN = "elkm1"
 REQUIREMENTS = [
-    'PyElk==0.2.0.dev20',
+    'elkm1==0.2.1',
     ]
 
 CONF_AREA = 'area'
@@ -140,11 +141,13 @@ CONFIG_SCHEMA = vol.Schema({
     })
 }, extra=vol.ALLOW_EXTRA)
 
-SUPPORTED_DOMAINS = ['sensor', 'switch', 'alarm_control_panel', 'climate',
-                     'light']
+#SUPPORTED_DOMAINS = ['sensor', 'switch', 'alarm_control_panel', 'climate',
+#                     'light']
+SUPPORTED_DOMAINS = ['sensor']
 
 
-def setup(hass: HomeAssistant, config: ConfigType) -> bool:
+@asyncio.coroutine
+def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Set up the Elk M1 platform."""
     # Voluptuous won't fill in missing optional sub-schema with their
     # defaults, but will fill in empty ones...
@@ -160,47 +163,33 @@ def setup(hass: HomeAssistant, config: ConfigType) -> bool:
     _LOGGER.debug('Elk config : %s', elk_config)
 
     # Connect to Elk panel
-    import PyElk
+    import elkm1
 
-    bound_event_callback = partial(_callback_from_pyelk, hass, config)
-    pyelk_instance = PyElk.Elk(elk_config, log=_LOGGER)
-    pyelk_instance.callback_add(bound_event_callback)
+    #bound_event_callback = partial(_callback_from_pyelk, hass, config)
 
-    #system = ElkSystemDevice(pyelk_instance)
-    #hass.add_devices([system], True)
+    elk = elkm1.Elk({'url': elk_config[CONF_HOST]}, loop=hass.loop)
 
-    hass.data['PyElk'] = {
-        'connection' : pyelk_instance,
+    hass.data['elkm1'] = {
+        'connection' : elk,
         'discovered_devices' : {},
         'config' : elk_config,
         }
-    # Listen for HA stop to disconnect.
-    hass.bus.listen_once(EVENT_HOMEASSISTANT_STOP,
-                         hass.data['PyElk']['connection'].stop())
+    ## Listen for HA stop to disconnect.
+    #hass.bus.listen_once(EVENT_HOMEASSISTANT_STOP,
+    #                     hass.data['PyElk']['connection'].stop())
 
-    ## Listen for events from PyElk that may require adding devices
-    #def handle_event_pyelk_update(event):
-    #    for component in SUPPORTED_DOMAINS:
-    #        # Check whether entity exists and pass that
-    #        # through discovery data ?
-    #        discovery_data = {}
-    #        discovery.load_platform(hass, component, DOMAIN,
-    #                                discovery_data, elk_config)
-    #    return
+    @asyncio.coroutine
+    def connect():
+        _LOGGER.debug("Elk connect")
+        yield from elk.connect()
 
-    #hass.bus.listen(EVENT_PYELK_UPDATE, handle_event_pyelk_update)
-    # Try to connect to Elk
-    pyelk_instance.connect()
-
-    # No retry yet implemented
-    if pyelk_instance.status == pyelk_instance.STATE_DISCONNECTED:
-        return False
+    hass.async_add_job(connect)
 
     # Load platforms for the devices in the Elk panel that we support.
     for component in SUPPORTED_DOMAINS:
-        discovery.load_platform(hass, component, DOMAIN, [], elk_config)
+        hass.async_add_job(
+            discovery.async_load_platform(hass, component, DOMAIN, [], elk_config))
 
-    pyelk_instance.rescan()
     return True
 
 
@@ -208,14 +197,14 @@ def setup(hass: HomeAssistant, config: ConfigType) -> bool:
 #    """Stop PyElk."""
 #    pyelk_instance.stop()
 
-
-def _callback_from_pyelk(hass, config, data):
-    """PyElk callback handler to register changes."""
-    # Determine the type of event
-
-    # New device available or device removed
-    # Currently just hide removed devices, rather than remove
-    for component in SUPPORTED_DOMAINS:
-        # Try to discover new devices
-        discovery_data = [data]
-        discovery.load_platform(hass, component, DOMAIN, discovery_data, config)
+#
+#def _callback_from_pyelk(hass, config, data):
+#    """PyElk callback handler to register changes."""
+#    # Determine the type of event
+#
+#    # New device available or device removed
+#    # Currently just hide removed devices, rather than remove
+#    for component in SUPPORTED_DOMAINS:
+#        # Try to discover new devices
+#        discovery_data = [data]
+#        discovery.load_platform(hass, component, DOMAIN, discovery_data, config)
