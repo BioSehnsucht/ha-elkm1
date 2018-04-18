@@ -74,11 +74,11 @@ def async_setup_platform(hass, config: ConfigType,
         if isinstance(element, ElkZone) or isinstance(element, ElkKeypad) or\
         isinstance(element, ElkThermostat) or isinstance(element, ElkCounter) or\
         isinstance(element, ElkSetting):
-            node_name = 'sensor.' + ElkSensorDevice.entity_name(element)[0]
-            if node_name not in discovered_devices:
+            element_name = 'sensor.' + ElkSensorDevice.entity_name(element)[0]
+            if element_name not in discovered_devices:
                 _LOGGER.debug('Loading Elk %s: %s', element.__class__.__name__, element.name)
                 device = ElkSensorDevice(element)
-                discovered_devices[node_name] = device
+                discovered_devices[element_name] = device
                 devices.append(device)
             else:
                 _LOGGER.debug('Skipping already loaded Elk %s: %s', element.__class__.__name__, element.name)
