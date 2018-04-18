@@ -61,9 +61,9 @@ def async_setup_platform(hass, config: ConfigType,
             continue
         if element_name not in discovered_devices:
             if isinstance(element, ElkOutput):
-                device = ElkOutputDevice(element, elk)
+                device = ElkOutputDevice(element)
             if isinstance(element, ElkTask):
-                device = ElkTaskDevice(element, elk)
+                device = ElkTaskDevice(element)
             _LOGGER.debug('Loading Elk %s: %s', element.__class__.__name__, element.name)
             discovered_devices[element_name] = device
             devices.append(device)
@@ -77,9 +77,8 @@ def async_setup_platform(hass, config: ConfigType,
 class ElkOutputDevice(ToggleEntity):
     """Elk Output as Toggle Switch."""
 
-    def __init__(self, output, elk):
+    def __init__(self, output):
         """Initialize output switch."""
-        self._elk = elk
         self._element = output
         self._name = 'elk_output_' + format(output.index + 1, '03')
         self.entity_id = 'switch.' + self._name
@@ -147,9 +146,8 @@ class ElkOutputDevice(ToggleEntity):
 class ElkTaskDevice(ToggleEntity):
     """Elk Task as Toggle Switch."""
 
-    def __init__(self, task, elk):
+    def __init__(self, task):
         """Initialize task switch."""
-        self._elk = elk
         self._element = task
         self._name = 'elk_task_' + format(task.index + 1, '03')
         self.entity_id = 'switch.' + self._name

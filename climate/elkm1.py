@@ -1,5 +1,5 @@
 """Support for control of Elk-connected thermostats."""
-
+import asyncio
 import logging
 from typing import Callable  # noqa
 
@@ -18,6 +18,8 @@ from homeassistant.const import (
     ATTR_SUPPORTED_FEATURES
     )
 
+from homeassistant.core import callback
+
 DEPENDENCIES = ['elkm1']
 
 _LOGGER = logging.getLogger(__name__)
@@ -25,47 +27,49 @@ _LOGGER = logging.getLogger(__name__)
 SUPPORT_FLAGS = (SUPPORT_TARGET_TEMPERATURE_HIGH | SUPPORT_TARGET_TEMPERATURE_LOW |
                  SUPPORT_OPERATION_MODE | SUPPORT_FAN_MODE | SUPPORT_AUX_HEAT)
 
-def setup_platform(hass, config: ConfigType,
+@asyncio.coroutine
+def async_setup_platform(hass, config: ConfigType,
                    add_devices: Callable[[list], None], discovery_info=[]):
     """Setup the Elk climate platform."""
-    elk = hass.data['PyElk']['connection']
-    elk_config = hass.data['PyElk']['config']
-    discovered_devices = hass.data['PyElk']['discovered_devices']
-    if elk is None:
-        _LOGGER.error('Elk is None')
-        return False
-    if not elk.connected:
-        _LOGGER.error('A connection has not been made to the Elk panel.')
-        return False
+    elk = hass.data['elkm1']['connection']
+    elk_config = hass.data['elkm1']['config']
+    discovered_devices = hass.data['elkm1']['discovered_devices']
+    #if elk is None:
+    #    _LOGGER.error('Elk is None')
+    #    return False
+    #if not elk.connected:
+    #    _LOGGER.error('A connection has not been made to the Elk panel.')
+    #    return False
+
     devices = []
-    from PyElk.Thermostat import Thermostat as ElkThermostat
+    from elkm1.thermostats import Thermostat as ElkThermostat
     # If no discovery info was passed in, discover automatically
     if len(discovery_info) == 0:
         # Gather areas
-        for node in elk.THERMOSTATS:
-            if node:
-                if node.included is True and node.enabled is True:
-                    discovery_info.append(node)
+        for element in elk.thermostats:
+            if element:
+                #if node.included is True and node.enabled is True:
+                    discovery_info.append(element)
     # If discovery info was passed in, check if we want to include it
-    else:
-        for node in discovery_info:
-            if node.included is True and node.enabled is True:
-                continue
-            else:
-                discovery_info.remove(node)
+    #else:
+    #    for node in discovery_info:
+    #        if node.included is True and node.enabled is True:
+    #            continue
+    #        else:
+    #            discovery_info.remove(node)
     # Add discovered devices
-    for node in discovery_info:
-        if isinstance(node, ElkThermostat):
-            node_name = 'climate.' + 'elk_thermostat_' + format(node.number, '02')
+    for element in discovery_info:
+        if isinstance(element, ElkThermostat):
+            element_name = 'climate.' + 'elk_thermostat_' + format(element.index + 1, '02')
         else:
             continue
-        if node_name not in discovered_devices:
-            _LOGGER.debug('Loading Elk %s: %s', node.classname, node.description_pretty())
-            device = ElkClimateDevice(node)
-            discovered_devices[node_name] = device
+        if element_name not in discovered_devices:
+            _LOGGER.debug('Loading Elk %s: %s', element.__class__.__name__, element.name)
+            device = ElkClimateDevice(element)
+            discovered_devices[element_name] = device
             devices.append(device)
         else:
-            _LOGGER.debug('Skipping already loaded Elk %s: %s', node.classname, node.description_pretty())
+            _LOGGER.debug('Skipping already loaded Elk %s: %s', element.__class__.__name__, element.name)
 
     add_devices(devices, True)
     return True
@@ -77,18 +81,18 @@ class ElkClimateDevice(ClimateDevice):
     def __init__(self, device):
         """Initialize device sensor."""
         self._type = None
-        self._device = device
-        self._hidden = not self._device.enabled
-        self._name = 'elk_thermostat_' + format(device.number, '02')
+        self._element = device
+        self._hidden = self._element.is_default_name()
+        self._name = 'elk_thermostat_' + format(device.index + 1, '02')
         self.entity_id = 'climate.' + self._name
-        self._device.callback_add(self.trigger_update)
+        self._element.add_callback(self.trigger_update)
 
-    def trigger_update(self, node):
+    @callback
+    def trigger_update(self, attribute, value):
         """Target of PyElk callback."""
         _LOGGER.debug('Triggering auto update of device ' + str(
-            self._device.number))
-        self._hidden = not self._device.enabled
-        self.schedule_update_ha_state(True)
+            self._element.index + 1))
+        self.async_schedule_update_ha_state(True)
 
     @property
     def supported_features(self):
@@ -98,7 +102,7 @@ class ElkClimateDevice(ClimateDevice):
     @property
     def name(self):
         """Return the name of the Thermostat."""
-        return self._device.description_pretty()
+        return self._element.name
 
     @property
     def temperature_unit(self):
@@ -108,8 +112,8 @@ class ElkClimateDevice(ClimateDevice):
     @property
     def current_temperature(self):
         """Return the current temperature."""
-        if self._device.temp is not None and self._device.temp > -460:
-                return self._device.temp
+        if self._element.current_temp is not None and self._element.current_temp > 0:
+                return self._element.current_temp
         return None
 
     @property
@@ -120,19 +124,20 @@ class ElkClimateDevice(ClimateDevice):
     @property
     def state(self):
         """Return the current state."""
+        from elkm1.const import ThermostatSetting, ThermostatMode, ThermostatFan, ThermostatHold
         # We can't actually tell if it's actively running in any of these
         # modes, just what mode is set
-        if (self._device.mode == self._device.MODE_OFF) and (
-                self._device.fan == self._device.FAN_ON):
+        if (self._element.mode == ThermostatMode.MODE_OFF.value) and (
+                self._element.fan == ThermostatFan.FAN_ON.value):
             return STATE_FAN_ONLY
-        elif self._device.mode == self._device.MODE_OFF:
+        elif self._element.mode == ThermostatMode.MODE_OFF.value:
             return STATE_IDLE
-        elif (self._device.mode == self._device.MODE_HEAT) or (
-            self._device.mode == self._device.MODE_HEAT_EMERGENCY):
+        elif (self._element.mode == ThermostatMode.MODE_HEAT.value) or (
+            self._element.mode == ThermostatMode.MODE_EMERGENCY_HEAT.value):
             return STATE_HEAT
-        elif self._device.mode == self._device.MODE_COOL:
+        elif self._element.mode == ThermostatMode.MODE_COOL.value:
             return STATE_COOL
-        elif self._device.mode == self._device.MODE_AUTO:
+        elif self._element.mode == ThermostatMode.MODE_AUTO.value:
             return STATE_AUTO
         return STATE_UNKNOWN
 
@@ -151,19 +156,22 @@ class ElkClimateDevice(ClimateDevice):
             'hidden': self._hidden,
             'temp_unit' : self.temperature_unit,
             }
-        if self._device.temp_outside is not None and self._device.temp_outside > -460:
-            data['temp_outside'] = self._device.temp_outside
-        if self._device.temp_3 is not None and self._device.temp_3 > -460:
-            data['temp_3'] = self._device.temp_3
-        if self._device.temp_4 is not None and self._device.temp_4 > -460:
-            data['temp_4'] = self._device.temp_4
+        # Pending Omni2 support
+        #if self._element.temp_outside is not None and self._element.temp_outside > -460:
+        #    data['temp_outside'] = self._element.temp_outside
+        #if self._element.temp_3 is not None and self._element.temp_3 > -460:
+        #    data['temp_3'] = self._element.temp_3
+        #if self._element.temp_4 is not None and self._element.temp_4 > -460:
+        #    data['temp_4'] = self._element.temp_4
         return data
 
-    def update(self):
+    @asyncio.coroutine
+    def async_update(self):
         """Get the latest data and update the state."""
-        if self._device.age() > 5:
-            # Only poll device if last update was more than 5 seconds ago
-            self.request_temp()
+        #if self._element.age() > 5:
+        #    # Only poll device if last update was more than 5 seconds ago
+        #    self.request_temp()
+        self._hidden = self._element.is_default_name()
         return
 
     @property
@@ -175,34 +183,36 @@ class ElkClimateDevice(ClimateDevice):
     def current_humidity(self):
         """Return the current humidity."""
         # FIXME: Should this be converted from RH to AH?
-        if self._device.humidity is not None and self._device.humidity > 0:
-            return self._device.humidity
+        if self._element.humidity is not None and self._element.humidity > 0:
+            return self._element.humidity
         return STATE_UNKNOWN
 
     @property
     def is_aux_heat_on(self):
         """Return true if aux heater."""
-        return self._device.mode == self._device.MODE_HEAT_EMERGENCY
+        from elkm1.const import ThermostatMode
+        return self._element.mode == ThermostatMode.MODE_EMERGENCY_HEAT.value
 
     @property
     def target_temperature(self):
         """Return the temperature we try to reach."""
-        if (self._device.mode == self._device.MODE_HEAT) or (
-            self._device.mode == self._device.MODE_HEAT_EMERGENCY):
-            return self._device.setpoint_heat
-        if self._device.mode == self._device.MODE_COOL:
-            return self._device.setpoint_cool
+        from elkm1.const import ThermostatMode
+        if (self._element.mode == ThermostatMode.MODE_HEAT.value) or (
+            self._element.mode == ThermostatMode.MODE_EMERGENCY_HEAT.value):
+            return self._element.heat_setpoint
+        if self._element.mode == ThermostatMode.MODE_COOL.value:
+            return self._element.cool_setpoint
         return None
 
     @property
     def target_temperature_high(self):
         """Return the highbound target temperature we try to reach."""
-        return self._device.setpoint_cool
+        return self._element.cool_setpoint
 
     @property
     def target_temperature_low(self):
         """Return the lowbound target temperature we try to reach."""
-        return self._device.setpoint_heat
+        return self._element.heat_setpoint
 
     @property
     def min_temp(self):
@@ -238,38 +248,43 @@ class ElkClimateDevice(ClimateDevice):
     @property
     def current_fan_mode(self):
         """Return the fan setting."""
-        if self._device.fan == self._device.FAN_AUTO:
+        from elkm1.const import ThermostatFan
+        if self._element.fan == ThermostatFan.FAN_AUTO.value:
             return STATE_AUTO
-        elif self._device.fan == self._device.FAN_ON:
+        elif self._element.fan == ThermostatFan.FAN_ON.value:
             return STATE_ON
         return STATE_UNKNOWN
 
     def set_operation_mode(self, operation_mode):
         """Set mode."""
+        from elkm1.const import ThermostatMode, ThermostatSetting, ThermostatFan
         if operation_mode == STATE_IDLE:
-            self._device.set_mode(self._device.MODE_OFF)
-            self._device.set_fan(self._device.FAN_AUTO)
+            self._element.set(ThermostatSetting.ELEMENT_MODE.value, ThermostatMode.MODE_OFF.value)
+            self._element.set(ThermostatSetting.ELEMENT_FAN.value, ThermostatFan.FAN_AUTO.value)
         elif operation_mode == STATE_HEAT:
-            self._device.set_mode(self._device.MODE_HEAT)
-            self._device.set_fan(self._device.FAN_AUTO)
+            self._element.set(ThermostatSetting.ELEMENT_MODE.value, ThermostatMode.MODE_HEAT.value)
+            self._element.set(ThermostatSetting.ELEMENT_FAN.value, ThermostatFan.FAN_AUTO.value)
         elif operation_mode == STATE_COOL:
-            self._device.set_mode(self._device.MODE_COOL)
-            self._device.set_fan(self._device.FAN_AUTO)
+            self._element.set(ThermostatSetting.ELEMENT_MODE.value, ThermostatMode.MODE_COOL.value)
+            self._element.set(ThermostatSetting.ELEMENT_FAN.value, ThermostatFan.FAN_AUTO.value)
         elif operation_mode == STATE_AUTO:
-            self._device.set_mode(self._device.MODE_AUTO)
-            self._device.set_fan(self._device.FAN_AUTO)
+            self._element.set(ThermostatSetting.ELEMENT_MODE.value, ThermostatMode.MODE_AUTO.value)
+            self._element.set(ThermostatSetting.ELEMENT_FAN.value, ThermostatFan.FAN_AUTO.value)
         elif operation_mode == STATE_FAN_ONLY:
-            self._device.set_mode(self._device.MODE_OFF)
-            self._device.set_fan(self._device.FAN_ON)
+            self._element.set(ThermostatSetting.ELEMENT_MODE.value, ThermostatMode.MODE_OFF.value)
+            self._element.set(ThermostatSetting.ELEMENT_FAN.value, ThermostatFan.FAN_ON.value)
 
     def turn_aux_heat_on(self):
         """Turn auxiliary heater on."""
-        self._device.set_mode(self._device.MODE_HEAT_EMERGENCY)
-        self._device.set_fan(self._device.FAN_AUTO)
+        from elkm1.const import ThermostatMode, ThermostatSetting, ThermostatFan
+        self._element.set(ThermostatSetting.ELEMENT_MODE.value, ThermostatMode.MODE_EMERGENCY_HEAT.value)
+        self._element.set(ThermostatSetting.ELEMENT_FAN.value, ThermostatFan.FAN_AUTO.value)
 
     def turn_aux_heat_off(self):
         """Turn auxiliary heater off."""
-        self.set_operation_mode(STATE_HEAT)
+        from elkm1.const import ThermostatMode, ThermostatSetting, ThermostatFan
+        self._element.set(ThermostatSetting.ELEMENT_MODE.value, ThermostatMode.MODE_HEAT.value)
+        self._element.set(ThermostatSetting.ELEMENT_FAN.value, ThermostatFan.FAN_AUTO.value)
 
     @property
     def fan_list(self):
@@ -281,22 +296,24 @@ class ElkClimateDevice(ClimateDevice):
 
     def set_fan_mode(self, fan):
         """Set new target fan mode."""
+        from elkm1.const import ThermostatSetting, ThermostatFan
         if fan == STATE_AUTO:
-            self._device.set_fan(self._device.FAN_AUTO)
+            self._element.set(ThermostatSetting.ELEMENT_FAN.value, ThermostatFan.FAN_AUTO.value)
         elif fan == STATE_ON:
-            self._device.set_fan(self._device.FAN_ON)
+            self._element.set(ThermostatSetting.ELEMENT_FAN.value, ThermostatFan.FAN_ON.value)
 
     def set_temperature(self, **kwargs):
         """Set new target temperature."""
+        from elkm1.const import ThermostatMode, ThermostatSetting
         low_temp = kwargs.get(ATTR_TARGET_TEMP_LOW)
         high_temp = kwargs.get(ATTR_TARGET_TEMP_HIGH)
         if low_temp is not None:
             low_temp = round(low_temp)
-            self._device.set_setpoint_heat(low_temp)
+            self._element.set(ThermostatSetting.ELEMENT_HEAT_SETPOINT.value, low_temp)
         if high_temp is not None:
             high_temp = round(high_temp)
-            self._device.set_setpoint_cool(high_temp)
+            self._element.set(ThermostatSetting.ELEMENT_COOL_SETPOINT.value, high_temp)
 
-    def request_temp(self):
-        """Request temperature."""
-        self._device.request_temp()
+    #def request_temp(self):
+    #    """Request temperature."""
+    #    self._element.request_temp()

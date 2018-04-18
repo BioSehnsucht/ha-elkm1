@@ -121,11 +121,11 @@ class ElkSensorDevice(Entity):
         if isinstance(device, ElkZone):
             # If our device is a Zone, what kind?
             name = 'elk_zone_'
-            if device.definition == ZoneType.Temperature:
+            if device.definition == ZoneType.Temperature.value:
                 # Temperature Zone
                 type = cls.TYPE_ZONE_TEMP
                 name = 'elk_temp_z_'
-            elif device.definition == ZoneType.AnalogZone:
+            elif device.definition == ZoneType.AnalogZone.value:
                 # Analog voltage Zone
                 type = cls.TYPE_ZONE_VOLTAGE
                 name = 'elk_analog_z_'

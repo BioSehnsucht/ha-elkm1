@@ -54,7 +54,7 @@ def async_setup_platform(hass, config: ConfigType,
         else:
             continue
         if element_name not in discovered_devices:
-            device = ElkLightDevice(element, elk)
+            device = ElkLightDevice(element)
             _LOGGER.debug('Loading Elk %s: %s', element.__class__.__name__, element.name)
             discovered_devices[element_name] = device
             devices.append(device)
@@ -73,9 +73,8 @@ class ElkLightDevice(Light):
         name = 'elk_light_' + format(device.index + 1, '03') #+ device.house_pretty + device.device_pretty
         return name
 
-    def __init__(self, device, elk):
+    def __init__(self, device):
         """Initialize X10 switch."""
-        self._elk = elk
         self._element = device
         self._name = ElkLightDevice.entity_name(device)
         # FIXME: Why does this work for sensor but not anywhere else?
@@ -138,8 +137,8 @@ class ElkLightDevice(Light):
         self._hidden = self._element.is_default_name()
         if self._element.index < 3:
             self._hidden = False
-        if self._hidden == False:
-            _LOGGER.error('async_update - Elk brightness is ' + str(self._brightness))
+        #if self._hidden == False:
+        #    _LOGGER.error('async_update - Elk brightness is ' + str(self._brightness))
 
 
     @property
@@ -169,16 +168,16 @@ class ElkLightDevice(Light):
     def async_turn_on(self, **kwargs):
         """Turn on output."""
         if ATTR_BRIGHTNESS in kwargs:
-            _LOGGER.error('async_turn_on : brightness is ' + str(kwargs[ATTR_BRIGHTNESS]))
+            #_LOGGER.error('async_turn_on : brightness is ' + str(kwargs[ATTR_BRIGHTNESS]))
             level = math.ceil(kwargs[ATTR_BRIGHTNESS] / 2.55 )
-            _LOGGER.error('async_turn_on : scaled brightness is ' + str(level))
+            #_LOGGER.error('async_turn_on : scaled brightness is ' + str(level))
             if level > 99:
                 level = 99
             if level < 2:
                 level = 2
             self._element.turn_on(level,0)
         else:
-            _LOGGER.error('async_turn_on')
+            #_LOGGER.error('async_turn_on')
             self._element.turn_on(100,0)
 
     @asyncio.coroutine
