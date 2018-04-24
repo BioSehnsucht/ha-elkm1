@@ -135,6 +135,7 @@ class ElkLightDevice(Light):
             self._brightness = 0
             self._state = STATE_OFF
         self._hidden = self._element.is_default_name()
+        # TODO : Remove. I need to name devies on my Elk so they don't get hidden ...
         if self._element.index < 3:
             self._hidden = False
         #if self._hidden == False:

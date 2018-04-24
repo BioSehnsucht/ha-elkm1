@@ -34,7 +34,7 @@ from homeassistant.helpers.typing import ConfigType # noqa
 
 DOMAIN = "elkm1"
 REQUIREMENTS = [
-    'elkm1==0.3.2',
+    'elkm1==0.3.5',
     ]
 
 CONF_AREA = 'area'
@@ -141,9 +141,8 @@ CONFIG_SCHEMA = vol.Schema({
     })
 }, extra=vol.ALLOW_EXTRA)
 
-#SUPPORTED_DOMAINS = ['sensor', 'switch', 'alarm_control_panel', 'climate',
-#                     'light']
-SUPPORTED_DOMAINS = ['sensor', 'switch', 'climate', 'light']
+SUPPORTED_DOMAINS = ['sensor', 'switch', 'alarm_control_panel', 'climate',
+                     'light']
 
 
 @asyncio.coroutine

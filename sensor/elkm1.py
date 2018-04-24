@@ -121,11 +121,11 @@ class ElkSensorDevice(Entity):
         if isinstance(device, ElkZone):
             # If our device is a Zone, what kind?
             name = 'elk_zone_'
-            if device.definition == ZoneType.Temperature.value:
+            if device.definition == ZoneType.TEMPERATURE.value:
                 # Temperature Zone
                 type = cls.TYPE_ZONE_TEMP
                 name = 'elk_temp_z_'
-            elif device.definition == ZoneType.AnalogZone.value:
+            elif device.definition == ZoneType.ANALOG_ZONE.value:
                 # Analog voltage Zone
                 type = cls.TYPE_ZONE_VOLTAGE
                 name = 'elk_analog_z_'
@@ -177,45 +177,45 @@ class ElkSensorDevice(Entity):
         #else:
         #    self._hidden = not self._element.enabled
         self._icon = {
-            ZoneType.Disabled.value : '',
-            ZoneType.BurlarEntryExit1.value : 'alarm-bell',
-            ZoneType.BurlarEntryExit2.value : 'alarm-bell',
-            ZoneType.BurglarPerimeterInstant.value : 'alarm-bell',
-            ZoneType.BurglarInterior.value : 'alarm-bell',
-            ZoneType.BurglarInteriorFollower.value : 'alarm-bell',
-            ZoneType.BurglarInteriorNight.value : 'alarm-bell',
-            ZoneType.BurglarInteriorNightDelay.value : 'alarm-bell',
-            ZoneType.Burglar24Hour.value : 'alarm-bell',
-            ZoneType.BurglarBoxTamper.value : 'alarm-bell',
-            ZoneType.FireAlarm.value : 'fire',
-            ZoneType.FireVerified.value : 'fire',
-            ZoneType.FireSupervisory.value : 'fire',
-            ZoneType.AuxAlarm1.value : 'alarm-bell',
-            ZoneType.AuxAlarm2.value : 'alarm-bell',
-            ZoneType.KeyFob.value : 'key',
-            ZoneType.NonAlarm.value : 'alarm-off',
-            ZoneType.CarbonMonoxide.value : 'alarm-bell',
-            ZoneType.EmergencyAlarm.value : 'alarm-bell',
-            ZoneType.FreezeAlarm.value : 'alarm-bell',
-            ZoneType.GasAlarm.value : 'alarm-bell',
-            ZoneType.HeatAlarm.value : 'alarm-bell',
-            ZoneType.MedicalAlarm.value : 'medical-bag',
-            ZoneType.PoliceAlarm.value : 'alarm-light',
-            ZoneType.PoliceNoIndication.value : 'alarm-light',
-            ZoneType.WaterAlarm.value : 'alarm-bell',
-            ZoneType.KeyMomentaryArmDisarm.value : 'power',
-            ZoneType.KeyMomentaryArmAway.value : 'power',
-            ZoneType.KeyMomentaryArmStay.value : 'power',
-            ZoneType.KeyMomentaryDisarm.value : 'power',
-            ZoneType.KeyOnOff.value : 'toggle-switch',
-            ZoneType.MuteAudibles.value : 'volume-mute',
-            ZoneType.PowerSupervisory.value : 'power-plug',
-            ZoneType.Temperature.value : 'thermometer-lines',
-            ZoneType.AnalogZone.value : 'speedometer',
-            ZoneType.PhoneKey.value : 'phone-classic',
-            ZoneType.IntercomKey.value : 'deskphone'
+            ZoneType.DISABLED.value : '',
+            ZoneType.BURLAR_ENTRY_EXIT_1.value : 'alarm-bell',
+            ZoneType.BURLAR_ENTRY_EXIT_2.value : 'alarm-bell',
+            ZoneType.BURGLAR_PERIMETER_INSTANT.value : 'alarm-bell',
+            ZoneType.BURGLAR_INTERIOR.value : 'alarm-bell',
+            ZoneType.BURGLAR_INTERIOR_FOLLOWER.value : 'alarm-bell',
+            ZoneType.BURGLAR_INTERIOR_NIGHT.value : 'alarm-bell',
+            ZoneType.BURGLAR_INTERIOR_NIGHT_DELAY.value : 'alarm-bell',
+            ZoneType.BURGLAR24_HOUR.value : 'alarm-bell',
+            ZoneType.BURGLAR_BOX_TAMPER.value : 'alarm-bell',
+            ZoneType.FIRE_ALARM.value : 'fire',
+            ZoneType.FIRE_VERIFIED.value : 'fire',
+            ZoneType.FIRE_SUPERVISORY.value : 'fire',
+            ZoneType.AUX_ALARM_1.value : 'alarm-bell',
+            ZoneType.AUX_ALARM_2.value : 'alarm-bell',
+            ZoneType.KEYFOB.value : 'key',
+            ZoneType.NON_ALARM.value : 'alarm-off',
+            ZoneType.CARBON_MONOXIDE.value : 'alarm-bell',
+            ZoneType.EMERGENCY_ALARM.value : 'alarm-bell',
+            ZoneType.FREEZE_ALARM.value : 'alarm-bell',
+            ZoneType.GAS_ALARM.value : 'alarm-bell',
+            ZoneType.HEAT_ALARM.value : 'alarm-bell',
+            ZoneType.MEDICAL_ALARM.value : 'medical-bag',
+            ZoneType.POLICE_ALARM.value : 'alarm-light',
+            ZoneType.POLICE_NO_INDICATION.value : 'alarm-light',
+            ZoneType.WATER_ALARM.value : 'alarm-bell',
+            ZoneType.KEY_MOMENTARY_ARM_DISARM.value : 'power',
+            ZoneType.KEY_MOMENTARY_ARM_AWAY.value : 'power',
+            ZoneType.KEY_MOMENTARY_ARM_STAY.value : 'power',
+            ZoneType.KEY_MOMENTARY_DISARM.value : 'power',
+            ZoneType.KEY_ON_OFF.value : 'toggle-switch',
+            ZoneType.MUTE_AUDIBLES.value : 'volume-mute',
+            ZoneType.POWER_SUPERVISORY.value : 'power-plug',
+            ZoneType.TEMPERATURE.value : 'thermometer-lines',
+            ZoneType.ANALOG_ZONE.value : 'speedometer',
+            ZoneType.PHONE_KEY.value : 'phone-classic',
+            ZoneType.INTERCOM_KEY.value : 'deskphone'
             }
-        self._definition_temperature = ZoneType.Temperature.value
+        self._definition_temperature = ZoneType.TEMPERATURE.value
         self._element.add_callback(self.trigger_update)
         self.update()
 
@@ -323,7 +323,7 @@ class ElkSensorDevice(Entity):
         state = None
         if self._type == self.TYPE_ZONE:
             state = ZoneLogicalStatus(self._element.logical_status).name
-            self._hidden = self._element.definition == ZoneType.Disabled.value
+            self._hidden = self._element.definition == ZoneType.DISABLED.value
         if (self._type == self.TYPE_ZONE_TEMP) or (
              self._type == self.TYPE_KEYPAD_TEMP):
             if self._element.temperature and self._element.temperature > -40:
