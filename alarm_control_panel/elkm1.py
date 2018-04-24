@@ -217,17 +217,17 @@ class ElkAreaDevice(alarm.AlarmControlPanel):
 
     def alarm_disarm(self, code=None):
         """Send disarm command."""
-        self._element.disarm(code)
+        self._element.disarm(int(code))
         return
 
     def alarm_arm_home(self, code=None):
         """Send arm home command."""
         from elkm1.const import ArmLevel
-        self._element.arm(ArmLevel.ARMED_STAY.value, code)
+        self._element.arm(ArmLevel.ARMED_STAY.value, int(code))
         return
 
     def alarm_arm_away(self, code=None):
         """Send arm away command."""
         from elkm1.const import ArmLevel
-        self._element.arm(ArmLevel.ARMED_AWAY.value, code)
+        self._element.arm(ArmLevel.ARMED_AWAY.value, int(code))
         return
