@@ -58,9 +58,10 @@ def async_setup_platform(hass, config: ConfigType,
     #        else:
     #            discovery_info.remove(node)
     # Add discovered devices
+    element_name = ''
     for element in discovery_info:
         if isinstance(element, ElkThermostat):
-            element_name = 'climate.' + 'elk_thermostat_' + format(element.index + 1, '02')
+            element_name = 'climate.' + 'elkm1_' + element.default_name('_')
         else:
             continue
         if element_name not in discovered_devices:
@@ -83,15 +84,13 @@ class ElkClimateDevice(ClimateDevice):
         self._type = None
         self._element = device
         self._hidden = self._element.is_default_name()
-        self._name = 'elk_thermostat_' + format(device.index + 1, '02')
+        self._name = 'elkm1_' + self._element.default_name('_')
         self.entity_id = 'climate.' + self._name
         self._element.add_callback(self.trigger_update)
 
     @callback
     def trigger_update(self, attribute, value):
         """Target of PyElk callback."""
-        _LOGGER.debug('Triggering auto update of device ' + str(
-            self._element.index + 1))
         self.async_schedule_update_ha_state(True)
 
     @property

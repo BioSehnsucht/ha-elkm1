@@ -48,9 +48,10 @@ def async_setup_platform(hass, config: ConfigType,
     #        else:
     #            discovery_info.remove(node)
     # Add discovered devices
+    element_name = ''
     for element in discovery_info:
         if isinstance(element, ElkLight):
-            element_name = 'light.' + ElkLightDevice.entity_name(element)
+            element_name = 'light.' + 'elkm1_' + element.default_name('_')
         else:
             continue
         if element_name not in discovered_devices:
@@ -67,18 +68,11 @@ def async_setup_platform(hass, config: ConfigType,
 
 class ElkLightDevice(Light):
     """Elk X10 device as Switch."""
-    @classmethod
-    def entity_name(cls, device):
-        from elkm1.lights import Light as ElkLight
-        name = 'elk_light_' + format(device.index + 1, '03') #+ device.house_pretty + device.device_pretty
-        return name
 
     def __init__(self, device):
         """Initialize X10 switch."""
         self._element = device
-        self._name = ElkLightDevice.entity_name(device)
-        # FIXME: Why does this work for sensor but not anywhere else?
-        #self.entity_id = ENTITY_ID_FORMAT.format(self._name)
+        self._name = 'elkm1_' + self._element.default_name('_')
         self.entity_id = 'light.' + self._name
         self._state = None
         self._hidden = self._element.is_default_name() #not self._device.enabled
@@ -92,7 +86,6 @@ class ElkLightDevice(Light):
     @property
     def state(self):
         """Return the state of the switch."""
-        #_LOGGER.debug('Light updating : ' + str(self._device.number))
         return self._state
 
     @property
@@ -117,9 +110,6 @@ class ElkLightDevice(Light):
     @callback
     def trigger_update(self, attribute, value):
         """Target of PyElk callback."""
-        #_LOGGER.debug('Triggering auto update of X10 '
-        #              + self._device.house_pretty
-        #              + ' ' + self._device.device_pretty)
         self.async_schedule_update_ha_state(True)
 
     @asyncio.coroutine
@@ -138,9 +128,6 @@ class ElkLightDevice(Light):
         # TODO : Remove. I need to name devies on my Elk so they don't get hidden ...
         if self._element.index < 3:
             self._hidden = False
-        #if self._hidden == False:
-        #    _LOGGER.error('async_update - Elk brightness is ' + str(self._brightness))
-
 
     @property
     def device_state_attributes(self):
@@ -169,16 +156,13 @@ class ElkLightDevice(Light):
     def async_turn_on(self, **kwargs):
         """Turn on output."""
         if ATTR_BRIGHTNESS in kwargs:
-            #_LOGGER.error('async_turn_on : brightness is ' + str(kwargs[ATTR_BRIGHTNESS]))
             level = math.ceil(kwargs[ATTR_BRIGHTNESS] / 2.55 )
-            #_LOGGER.error('async_turn_on : scaled brightness is ' + str(level))
             if level > 99:
                 level = 99
             if level < 2:
                 level = 2
             self._element.turn_on(level,0)
         else:
-            #_LOGGER.error('async_turn_on')
             self._element.turn_on(100,0)
 
     @asyncio.coroutine

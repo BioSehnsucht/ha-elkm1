@@ -34,7 +34,7 @@ from homeassistant.helpers.typing import ConfigType # noqa
 
 DOMAIN = "elkm1"
 REQUIREMENTS = [
-    'elkm1==0.3.5',
+    'elkm1==0.3.6',
     ]
 
 CONF_AREA = 'area'

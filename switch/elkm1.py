@@ -52,11 +52,10 @@ def async_setup_platform(hass, config: ConfigType,
     #        else:
     #            discovery_info.remove(element)
     # Add discovered devices
+    element_name = ''
     for element in discovery_info:
-        if isinstance(element, ElkOutput):
-            element_name = 'switch.' + 'elk_output_' + format(element.index + 1, '03')
-        elif isinstance(element, ElkTask):
-            element_name = 'switch.' + 'elk_task_' + format(element.index + 1, '03')
+        if isinstance(element, ElkOutput) or isinstance(element, ElkTask):
+            element_name = 'switch.' + 'elkm1_' + element.default_name('_')
         else:
             continue
         if element_name not in discovered_devices:
@@ -80,7 +79,7 @@ class ElkOutputDevice(ToggleEntity):
     def __init__(self, output):
         """Initialize output switch."""
         self._element = output
-        self._name = 'elk_output_' + format(output.index + 1, '03')
+        self._name = 'elkm1_' + self._element.default_name('_')
         self.entity_id = 'switch.' + self._name
         self._state = None
         self._element.add_callback(self.trigger_update)
@@ -93,7 +92,6 @@ class ElkOutputDevice(ToggleEntity):
     @property
     def state(self):
         """Return the state of the switch."""
-        #_LOGGER.debug('Output updating : ' + str(self._element.number))
         return self._state
 
 #    @property
@@ -104,8 +102,6 @@ class ElkOutputDevice(ToggleEntity):
     @callback
     def trigger_update(self, attribute, value):
         """Target of PyElk callback."""
-        #_LOGGER.debug('Triggering auto update of output ' + str(
-        #    self._element.number))
         self.async_schedule_update_ha_state(True)
 
     @asyncio.coroutine
@@ -149,7 +145,7 @@ class ElkTaskDevice(ToggleEntity):
     def __init__(self, task):
         """Initialize task switch."""
         self._element = task
-        self._name = 'elk_task_' + format(task.index + 1, '03')
+        self._name = 'elkm1_' + self._element.default_name('_')
         self.entity_id = 'switch.' + self._name
         self._state = STATE_OFF
         self._element.add_callback(self.trigger_update)
@@ -162,7 +158,6 @@ class ElkTaskDevice(ToggleEntity):
     @property
     def state(self):
         """Return the state of the switch."""
-        #_LOGGER.debug('Task updating : ' + str(self._element.number))
         return self._state
 
 #    @property
@@ -173,20 +168,15 @@ class ElkTaskDevice(ToggleEntity):
     @callback
     def trigger_update(self, attribute, value):
         """Target of PyElk callback."""
-        #_LOGGER.debug('Triggering auto update of task ' + str(
-        #    self._element.number))
+        if attribute == 'last_change':
+            self._state = STATE_ON
         self.async_schedule_update_ha_state(True)
 
     @asyncio.coroutine
     def async_update(self):
         """Get the latest data and update the state."""
-        #if self.is_on:
-        #    self._state = STATE_ON
-        #else:
-        #    self._state = STATE_OFF
-        #self._hidden = not self._element.enabled
-        # FIXME : Current Gwww lib doesn't handle TC?
-        self._state = STATE_OFF
+        if self.is_on:
+            self.hass.async_add_job(self._async_auto_off)
 
     @property
     def device_state_attributes(self):
@@ -204,10 +194,7 @@ class ElkTaskDevice(ToggleEntity):
     @property
     def is_on(self) -> bool:
         """True if output in the on state."""
-        # FIXME : Current Gwww lib doesn't handle TC?
-        #if self._element.status == self._element.STATUS_ON:
-        #    return True
-        return False
+        return self._state == STATE_ON
 
     @property
     def should_poll(self) -> bool:
@@ -222,3 +209,11 @@ class ElkTaskDevice(ToggleEntity):
         """Turn off output."""
         # Tasks aren't actually ever turned off
         # Tasks are momentary, so "always" off
+        self._state = STATE_OFF
+        self.async_schedule_update_ha_state(True)
+
+    @asyncio.coroutine
+    def _async_auto_off(self, timeout=2):
+        """Automatically turn off to emulate momentary action."""
+        yield from asyncio.sleep(timeout)
+        self.turn_off()

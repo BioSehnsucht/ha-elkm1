@@ -55,9 +55,10 @@ def async_setup_platform(hass, config: ConfigType,
     #        else:
     #            discovery_info.remove(node)
     # Add discovered devices
+    element_name = ''
     for element in discovery_info:
         if isinstance(element, ElkArea):
-            element_name = 'alarm_control_panel.' + 'elk_area_' + format(element.index + 1, '01')
+            element_name = 'alarm_control_panel.' + 'elkm1_' + element.default_name('_')
         #elif isinstance(node, ElkKeypad):
         #    if node.area > 0:
         #        node_name = 'alarm_control_panel.' + 'elk_area_' + format(node.area, '01')
@@ -89,7 +90,7 @@ class ElkAreaDevice(alarm.AlarmControlPanel):
         self._state = None
         self._state_ext = ''
         self._hidden = False
-        self._name = 'elk_area_' + str(area.index + 1)
+        self._name = 'elkm1_' + self._element.default_name('_')
         self.entity_id = 'alarm_control_panel.' + self._name
         self._keypads = []
         self._keypads_count = 0
@@ -142,6 +143,7 @@ class ElkAreaDevice(alarm.AlarmControlPanel):
     def device_state_attributes(self):
         """Return the state attributes of the sensor."""
         from elkm1.const import ArmedStatus, ArmUpState, AlarmState
+        from elkm1.util import pretty_const
         attrs = {
             'hidden': self._hidden,
             #'State': self._state,
@@ -154,18 +156,16 @@ class ElkAreaDevice(alarm.AlarmControlPanel):
             #'last_keypad_name': self._device.last_keypad_name,
             }
         if self._element.arm_up_state is not None:
-            attrs['Readiness'] = ArmUpState(str(self._element.arm_up_state)).name
+            attrs['Readiness'] = pretty_const(ArmUpState(self._element.arm_up_state).name)
         if self._element.armed_status is not None:
-            attrs['Arm Status'] = ArmedStatus(str(self._element.armed_status)).name,
+            attrs['Arm Status'] = pretty_const(ArmedStatus(self._element.armed_status).name),
         if self._element.alarm_state is not None:
-            attrs['Alarm'] = AlarmState(str(self._element.alarm_state)).name,
+            attrs['Alarm'] = pretty_const(AlarmState(self._element.alarm_state).name),
         return attrs
 
     @callback
     def trigger_update(self, attribute, value):
         """Target of PyElk callback."""
-        #_LOGGER.debug('Triggering auto update of area ' + str(
-        #    self._device.index + 1))
         self.async_schedule_update_ha_state(True)
 
     @asyncio.coroutine
@@ -174,19 +174,19 @@ class ElkAreaDevice(alarm.AlarmControlPanel):
         from elkm1.const import ArmedStatus, AlarmState
         # Set status based on arm state
         if self._element.armed_status is not None:
-            if str(self._element.armed_status) == ArmedStatus.DISARMED.value:
+            if self._element.armed_status == ArmedStatus.DISARMED.value:
                 self._state = STATE_ALARM_DISARMED
-            elif str(self._element.armed_status) == ArmedStatus.ARMED_AWAY.value:
+            elif self._element.armed_status == ArmedStatus.ARMED_AWAY.value:
                 self._state = STATE_ALARM_ARMED_AWAY
-            elif str(self._element.armed_status) == ArmedStatus.ARMED_STAY.value:
+            elif self._element.armed_status == ArmedStatus.ARMED_STAY.value:
                 self._state = STATE_ALARM_ARMED_HOME
-            elif str(self._element.armed_status) == ArmedStatus.ARMED_STAY_INSTANT.value:
+            elif self._element.armed_status == ArmedStatus.ARMED_STAY_INSTANT.value:
                 self._state = STATE_ALARM_ARMED_HOME
-            elif str(self._element.armed_status) == ArmedStatus.ARMED_TO_NIGHT.value:
+            elif self._element.armed_status == ArmedStatus.ARMED_TO_NIGHT.value:
                 self._state = STATE_ALARM_ARMED_HOME
-            elif str(self._element.armed_status) == ArmedStatus.ARMED_TO_NIGHT_INSTANT.value:
+            elif self._element.armed_status == ArmedStatus.ARMED_TO_NIGHT_INSTANT.value:
                 self._state = STATE_ALARM_ARMED_HOME
-            elif str(self._element.armed_status) == ArmedStatus.ARMED_TO_VACATION.value:
+            elif self._element.armed_status == ArmedStatus.ARMED_TO_VACATION.value:
                 self._state = STATE_ALARM_ARMED_AWAY
         else:
             self._state = STATE_UNKNOWN
@@ -199,7 +199,7 @@ class ElkAreaDevice(alarm.AlarmControlPanel):
         #    self._state = STATE_ALARM_DISARMING
         # If alarm is triggered, show that instead
         if self._element.alarm_state is not None:
-            if str(self._element.alarm_state) != AlarmState.NO_ALARM_ACTIVE.value:
+            if self._element.alarm_state != AlarmState.NO_ALARM_ACTIVE.value:
                 self._state = STATE_ALARM_TRIGGERED
         # If we should be hidden due to lack of member devices, hide us
         # TODO: Hide based on name being set?
