@@ -29,7 +29,7 @@ SUPPORT_FLAGS = (SUPPORT_TARGET_TEMPERATURE_HIGH | SUPPORT_TARGET_TEMPERATURE_LO
 
 @asyncio.coroutine
 def async_setup_platform(hass, config: ConfigType,
-                   add_devices: Callable[[list], None], discovery_info=[]):
+                   async_add_devices: Callable[[list], None], discovery_info=[]):
     """Setup the Elk climate platform."""
     elk = hass.data['elkm1']['connection']
     elk_config = hass.data['elkm1']['config']
@@ -72,7 +72,7 @@ def async_setup_platform(hass, config: ConfigType,
         else:
             _LOGGER.debug('Skipping already loaded Elk %s: %s', element.__class__.__name__, element.name)
 
-    add_devices(devices, True)
+    async_add_devices(devices, True)
     return True
 
 
@@ -84,7 +84,7 @@ class ElkClimateDevice(ClimateDevice):
         self._type = None
         self._element = device
         self._hidden = self._element.is_default_name()
-        self._name = 'elkm1_' + self._element.default_name('_')
+        self._name = 'elkm1_' + self._element.default_name('_').lower()
         self.entity_id = 'climate.' + self._name
         self._element.add_callback(self.trigger_update)
 

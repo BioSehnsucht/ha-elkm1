@@ -25,7 +25,7 @@ _LOGGER = logging.getLogger(__name__)
 
 @asyncio.coroutine
 def async_setup_platform(hass, config: ConfigType,
-                   add_devices: Callable[[list], None], discovery_info=[]):
+                   async_add_devices: Callable[[list], None], discovery_info=[]):
     """Setup the Elk switch platform."""
     elk = hass.data['elkm1']['connection']
     elk_config = hass.data['elkm1']['config']
@@ -75,7 +75,7 @@ def async_setup_platform(hass, config: ConfigType,
         else:
             _LOGGER.debug('Skipping already loaded Elk %s: %s', element.__class__.__name__, element.name)
 
-    add_devices(devices, True)
+    async_add_devices(devices, True)
     return True
 
 
@@ -90,7 +90,7 @@ class ElkAreaDevice(alarm.AlarmControlPanel):
         self._state = None
         self._state_ext = ''
         self._hidden = False
-        self._name = 'elkm1_' + self._element.default_name('_')
+        self._name = 'elkm1_' + self._element.default_name('_').lower()
         self.entity_id = 'alarm_control_panel.' + self._name
         self._keypads = []
         self._keypads_count = 0

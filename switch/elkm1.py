@@ -18,7 +18,7 @@ _LOGGER = logging.getLogger(__name__)
 
 @asyncio.coroutine
 def async_setup_platform(hass, config: ConfigType,
-                   add_devices: Callable[[list], None], discovery_info=[]):
+                   async_add_devices: Callable[[list], None], discovery_info=[]):
     """Setup the Elk switch platform."""
     elk = hass.data['elkm1']['connection']
     elk_config = hass.data['elkm1']['config']
@@ -69,7 +69,7 @@ def async_setup_platform(hass, config: ConfigType,
         else:
             _LOGGER.debug('Skipping already loaded Elk %s: %s', element.__class__.__name__, element.name)
 
-    add_devices(devices, True)
+    async_add_devices(devices, True)
     return True
 
 
@@ -79,7 +79,7 @@ class ElkOutputDevice(ToggleEntity):
     def __init__(self, output):
         """Initialize output switch."""
         self._element = output
-        self._name = 'elkm1_' + self._element.default_name('_')
+        self._name = 'elkm1_' + self._element.default_name('_').lower()
         self.entity_id = 'switch.' + self._name
         self._state = None
         self._element.add_callback(self.trigger_update)
@@ -116,8 +116,11 @@ class ElkOutputDevice(ToggleEntity):
     @property
     def device_state_attributes(self):
         """Return the state attributes of the switch."""
+        hidden = self._element.is_default_name()
+        if self._element._index < 10:
+            hidden = False
         return {
-            'hidden': False, #self._element.is_default_name(),
+            'hidden': hidden #self._element.is_default_name(),
             }
 
     @property
@@ -130,11 +133,11 @@ class ElkOutputDevice(ToggleEntity):
         """Return whether this device should be polled."""
         return False
 
-    def turn_on(self):
+    def turn_on(self, **kwargs):
         """Turn on output."""
         self._element.turn_on(0)
 
-    def turn_off(self):
+    def turn_off(self, **kwargs):
         """Turn off output."""
         self._element.turn_off()
 
@@ -145,7 +148,7 @@ class ElkTaskDevice(ToggleEntity):
     def __init__(self, task):
         """Initialize task switch."""
         self._element = task
-        self._name = 'elkm1_' + self._element.default_name('_')
+        self._name = 'elkm1_' + self._element.default_name('_').lower()
         self.entity_id = 'switch.' + self._name
         self._state = STATE_OFF
         self._element.add_callback(self.trigger_update)
@@ -201,11 +204,11 @@ class ElkTaskDevice(ToggleEntity):
         """Return whether this device should be polled."""
         return False
 
-    def turn_on(self):
+    def turn_on(self, **kwargs):
         """Turn on output."""
         self._element.activate()
 
-    def turn_off(self):
+    def turn_off(self, **kwargs):
         """Turn off output."""
         # Tasks aren't actually ever turned off
         # Tasks are momentary, so "always" off

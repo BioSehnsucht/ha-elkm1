@@ -19,7 +19,7 @@ _LOGGER = logging.getLogger(__name__)
 
 @asyncio.coroutine
 def async_setup_platform(hass, config: ConfigType,
-                   add_devices: Callable[[list], None], discovery_info=[]):
+                   async_add_devices: Callable[[list], None], discovery_info=[]):
     """Setup the Elk sensor platform."""
     elk = hass.data['elkm1']['connection']
     elk_config = hass.data['elkm1']['config']
@@ -36,6 +36,8 @@ def async_setup_platform(hass, config: ConfigType,
     from elkm1.keypads import Keypad as ElkKeypad
     from elkm1.counters import Counter as ElkCounter
     from elkm1.settings import Setting as ElkSetting
+    from elkm1.panel import Panel as ElkPanel
+
     # If no discovery info was passed in, discover automatically
     if len(discovery_info) == 0:
         # Gather zones
@@ -75,7 +77,7 @@ def async_setup_platform(hass, config: ConfigType,
     for element in discovery_info:
         if isinstance(element, ElkZone) or isinstance(element, ElkKeypad) or\
         isinstance(element, ElkThermostat) or isinstance(element, ElkCounter) or\
-        isinstance(element, ElkSetting):
+        isinstance(element, ElkSetting) or isinstance(element, ElkPanel):
             element_name = 'sensor.' + 'elkm1_' + element.default_name('_')
             if element_name not in discovered_devices:
                 _LOGGER.debug('Loading Elk %s: %s', element.__class__.__name__, element.name)
@@ -87,7 +89,7 @@ def async_setup_platform(hass, config: ConfigType,
         else:
             continue
 
-    add_devices(devices, True)
+    async_add_devices(devices, True)
     return True
 
 
@@ -95,7 +97,7 @@ class ElkSensorDevice(Entity):
     """Elk device as Sensor."""
 
     TYPE_UNDEFINED = 0
-    #TYPE_SYSTEM = 1
+    TYPE_PANEL = 1
     TYPE_ZONE = 2
     TYPE_ZONE_TEMP = 3
     TYPE_ZONE_VOLTAGE = 4
@@ -112,13 +114,14 @@ class ElkSensorDevice(Entity):
         from elkm1.keypads import Keypad as ElkKeypad
         from elkm1.counters import Counter as ElkCounter
         from elkm1.settings import Setting as ElkSetting
+        from elkm1.panel import Panel as ElkPanel
         self._type = None
         self._hidden = True
         self._element = device
         self._last_user = None
         self._last_user_at = 0
 
-        self._name = 'elkm1_' + self._element.default_name('_')
+        self._name = 'elkm1_' + self._element.default_name('_').lower()
         if isinstance(device, ElkZone):
             # If our device is a Zone, what kind?
             if device.definition == ZoneType.TEMPERATURE.value:
@@ -142,6 +145,9 @@ class ElkSensorDevice(Entity):
         if isinstance(device, ElkSetting):
             # Setting sensor
             self._type = self.TYPE_SETTING
+        if isinstance(device, ElkPanel):
+            # Panel sensor
+            self._type = self.TYPE_PANEL
         self.entity_id = 'sensor.' + self._name
         self._state = None
         #if hasattr(self._element, '_temp_enabled'):
@@ -231,10 +237,10 @@ class ElkSensorDevice(Entity):
             return 'mdi:' + self._icon[self._definition_temperature]
         if self._type in [self.TYPE_ZONE, self.TYPE_ZONE_VOLTAGE]:
             return 'mdi:' + self._icon[self._element.definition]
-        if self._type == self.TYPE_COUNTER:
+        if self._type in [self.TYPE_COUNTER, self.TYPE_SETTING]:
             return 'mdi:numeric'
-        if self._type == self.TYPE_SETTING:
-            return 'mdi:numeric'
+        if self._type == self.TYPE_PANEL:
+            return None
         return None
 
     @property
@@ -277,6 +283,11 @@ class ElkSensorDevice(Entity):
                 attributes['Last User At'] = self._last_user_at
         if self._type == self.TYPE_SETTING:
             attributes['Value Format'] = self._element.value_format
+        if self._type == self.TYPE_PANEL:
+            attributes['Elk M1 Version'] = self._element.elkm1_version
+            attributes['Elk M1XEP Version'] = self._element.elkm1_version
+            attributes['Real Time Clock'] = self._element.real_time_clock
+            attributes['Remote Programming'] == self._element.remote_programming_status
         return attributes
 
     @callback
