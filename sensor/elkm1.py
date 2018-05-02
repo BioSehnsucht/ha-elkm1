@@ -256,7 +256,7 @@ class ElkSensorDevice(Entity):
     @property
     def device_state_attributes(self):
         """Return the state attributes of the sensor."""
-        from elkm1.const import ZoneType, ZoneLogicalStatus, ZonePhysicalStatus
+        from elkm1.const import ZoneType, ZoneLogicalStatus, ZonePhysicalStatus, SettingFormat, ElkRPStatus
         from elkm1.util import pretty_const
         attributes = {
     #        'hidden': self._hidden,
@@ -282,12 +282,12 @@ class ElkSensorDevice(Entity):
             if self._last_user_at:
                 attributes['Last User At'] = self._last_user_at
         if self._type == self.TYPE_SETTING:
-            attributes['Value Format'] = self._element.value_format
+            attributes['Value Format'] = pretty_const(SettingFormat(self._element.value_format).name)
         if self._type == self.TYPE_PANEL:
             attributes['Elk M1 Version'] = self._element.elkm1_version
             attributes['Elk M1XEP Version'] = self._element.elkm1_version
             attributes['Real Time Clock'] = self._element.real_time_clock
-            attributes['Remote Programming'] == self._element.remote_programming_status
+            attributes['ElkRP'] == pretty_const(ElkRPStatus(self._element.remote_programming_status).name)
         return attributes
 
     @callback

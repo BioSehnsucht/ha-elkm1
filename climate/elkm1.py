@@ -126,17 +126,17 @@ class ElkClimateDevice(ClimateDevice):
         from elkm1.const import ThermostatSetting, ThermostatMode, ThermostatFan, ThermostatHold
         # We can't actually tell if it's actively running in any of these
         # modes, just what mode is set
-        if (self._element.mode == ThermostatMode.MODE_OFF.value) and (
-                self._element.fan == ThermostatFan.FAN_ON.value):
+        if (self._element.mode == ThermostatMode.OFF.value) and (
+                self._element.fan == ThermostatFan.ON.value):
             return STATE_FAN_ONLY
-        elif self._element.mode == ThermostatMode.MODE_OFF.value:
+        elif self._element.mode == ThermostatMode.OFF.value:
             return STATE_IDLE
-        elif (self._element.mode == ThermostatMode.MODE_HEAT.value) or (
-            self._element.mode == ThermostatMode.MODE_EMERGENCY_HEAT.value):
+        elif (self._element.mode == ThermostatMode.HEAT.value) or (
+            self._element.mode == ThermostatMode.EMERGENCY_HEAT.value):
             return STATE_HEAT
-        elif self._element.mode == ThermostatMode.MODE_COOL.value:
+        elif self._element.mode == ThermostatMode.COOL.value:
             return STATE_COOL
-        elif self._element.mode == ThermostatMode.MODE_AUTO.value:
+        elif self._element.mode == ThermostatMode.AUTO.value:
             return STATE_AUTO
         return STATE_UNKNOWN
 
@@ -190,16 +190,16 @@ class ElkClimateDevice(ClimateDevice):
     def is_aux_heat_on(self):
         """Return true if aux heater."""
         from elkm1.const import ThermostatMode
-        return self._element.mode == ThermostatMode.MODE_EMERGENCY_HEAT.value
+        return self._element.mode == ThermostatMode.EMERGENCY_HEAT.value
 
     @property
     def target_temperature(self):
         """Return the temperature we try to reach."""
         from elkm1.const import ThermostatMode
-        if (self._element.mode == ThermostatMode.MODE_HEAT.value) or (
-            self._element.mode == ThermostatMode.MODE_EMERGENCY_HEAT.value):
+        if (self._element.mode == ThermostatMode.HEAT.value) or (
+            self._element.mode == ThermostatMode.EMERGENCY_HEAT.value):
             return self._element.heat_setpoint
-        if self._element.mode == ThermostatMode.MODE_COOL.value:
+        if self._element.mode == ThermostatMode.COOL.value:
             return self._element.cool_setpoint
         return None
 
@@ -248,9 +248,9 @@ class ElkClimateDevice(ClimateDevice):
     def current_fan_mode(self):
         """Return the fan setting."""
         from elkm1.const import ThermostatFan
-        if self._element.fan == ThermostatFan.FAN_AUTO.value:
+        if self._element.fan == ThermostatFan.AUTO.value:
             return STATE_AUTO
-        elif self._element.fan == ThermostatFan.FAN_ON.value:
+        elif self._element.fan == ThermostatFan.ON.value:
             return STATE_ON
         return STATE_UNKNOWN
 
@@ -258,32 +258,32 @@ class ElkClimateDevice(ClimateDevice):
         """Set mode."""
         from elkm1.const import ThermostatMode, ThermostatSetting, ThermostatFan
         if operation_mode == STATE_IDLE:
-            self._element.set(ThermostatSetting.ELEMENT_MODE.value, ThermostatMode.MODE_OFF.value)
-            self._element.set(ThermostatSetting.ELEMENT_FAN.value, ThermostatFan.FAN_AUTO.value)
+            self._element.set(ThermostatSetting.MODE.value, ThermostatMode.OFF.value)
+            self._element.set(ThermostatSetting.FAN.value, ThermostatFan.AUTO.value)
         elif operation_mode == STATE_HEAT:
-            self._element.set(ThermostatSetting.ELEMENT_MODE.value, ThermostatMode.MODE_HEAT.value)
-            self._element.set(ThermostatSetting.ELEMENT_FAN.value, ThermostatFan.FAN_AUTO.value)
+            self._element.set(ThermostatSetting.MODE.value, ThermostatMode.HEAT.value)
+            self._element.set(ThermostatSetting.FAN.value, ThermostatFan.AUTO.value)
         elif operation_mode == STATE_COOL:
-            self._element.set(ThermostatSetting.ELEMENT_MODE.value, ThermostatMode.MODE_COOL.value)
-            self._element.set(ThermostatSetting.ELEMENT_FAN.value, ThermostatFan.FAN_AUTO.value)
+            self._element.set(ThermostatSetting.MODE.value, ThermostatMode.COOL.value)
+            self._element.set(ThermostatSetting.FAN.value, ThermostatFan.AUTO.value)
         elif operation_mode == STATE_AUTO:
-            self._element.set(ThermostatSetting.ELEMENT_MODE.value, ThermostatMode.MODE_AUTO.value)
-            self._element.set(ThermostatSetting.ELEMENT_FAN.value, ThermostatFan.FAN_AUTO.value)
+            self._element.set(ThermostatSetting.MODE.value, ThermostatMode.AUTO.value)
+            self._element.set(ThermostatSetting.FAN.value, ThermostatFan.AUTO.value)
         elif operation_mode == STATE_FAN_ONLY:
-            self._element.set(ThermostatSetting.ELEMENT_MODE.value, ThermostatMode.MODE_OFF.value)
-            self._element.set(ThermostatSetting.ELEMENT_FAN.value, ThermostatFan.FAN_ON.value)
+            self._element.set(ThermostatSetting.MODE.value, ThermostatMode.OFF.value)
+            self._element.set(ThermostatSetting.FAN.value, ThermostatFan.ON.value)
 
     def turn_aux_heat_on(self):
         """Turn auxiliary heater on."""
         from elkm1.const import ThermostatMode, ThermostatSetting, ThermostatFan
-        self._element.set(ThermostatSetting.ELEMENT_MODE.value, ThermostatMode.MODE_EMERGENCY_HEAT.value)
-        self._element.set(ThermostatSetting.ELEMENT_FAN.value, ThermostatFan.FAN_AUTO.value)
+        self._element.set(ThermostatSetting.MODE.value, ThermostatMode.EMERGENCY_HEAT.value)
+        self._element.set(ThermostatSetting.FAN.value, ThermostatFan.AUTO.value)
 
     def turn_aux_heat_off(self):
         """Turn auxiliary heater off."""
         from elkm1.const import ThermostatMode, ThermostatSetting, ThermostatFan
-        self._element.set(ThermostatSetting.ELEMENT_MODE.value, ThermostatMode.MODE_HEAT.value)
-        self._element.set(ThermostatSetting.ELEMENT_FAN.value, ThermostatFan.FAN_AUTO.value)
+        self._element.set(ThermostatSetting.MODE.value, ThermostatMode.HEAT.value)
+        self._element.set(ThermostatSetting.FAN.value, ThermostatFan.AUTO.value)
 
     @property
     def fan_list(self):
@@ -297,9 +297,9 @@ class ElkClimateDevice(ClimateDevice):
         """Set new target fan mode."""
         from elkm1.const import ThermostatSetting, ThermostatFan
         if fan == STATE_AUTO:
-            self._element.set(ThermostatSetting.ELEMENT_FAN.value, ThermostatFan.FAN_AUTO.value)
+            self._element.set(ThermostatSetting.FAN.value, ThermostatFan.FAN_AUTO.value)
         elif fan == STATE_ON:
-            self._element.set(ThermostatSetting.ELEMENT_FAN.value, ThermostatFan.FAN_ON.value)
+            self._element.set(ThermostatSetting.FAN.value, ThermostatFan.FAN_ON.value)
 
     def set_temperature(self, **kwargs):
         """Set new target temperature."""
@@ -308,10 +308,10 @@ class ElkClimateDevice(ClimateDevice):
         high_temp = kwargs.get(ATTR_TARGET_TEMP_HIGH)
         if low_temp is not None:
             low_temp = round(low_temp)
-            self._element.set(ThermostatSetting.ELEMENT_HEAT_SETPOINT.value, low_temp)
+            self._element.set(ThermostatSetting.HEAT_SETPOINT.value, low_temp)
         if high_temp is not None:
             high_temp = round(high_temp)
-            self._element.set(ThermostatSetting.ELEMENT_COOL_SETPOINT.value, high_temp)
+            self._element.set(ThermostatSetting.COOL_SETPOINT.value, high_temp)
 
     #def request_temp(self):
     #    """Request temperature."""
