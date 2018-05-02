@@ -40,31 +40,38 @@ def async_setup_platform(hass, config: ConfigType,
 
     # If no discovery info was passed in, discover automatically
     if len(discovery_info) == 0:
+        # Gather panel
+        discovery_info.append(elk.panel)
         # Gather zones
-        for element in elk.zones:
-            if element:
-                #if element.included is True and element.enabled is True:
-                    discovery_info.append(element)
+        if elk_config['zone']['enabled']:
+            for element in elk.zones:
+                if element:
+                    if elk_config['zone']['included'][element._index] is True:
+                        discovery_info.append(element)
         # Gather Keypads
-        for element in elk.keypads:
-            if element:
-                #if element.included is True and element.enabled is True:
-                    discovery_info.append(element)
+        if elk_config['keypad']['enabled']:
+            for element in elk.keypads:
+                if element:
+                    if elk_config['keypad']['included'][element._index] is True:
+                        discovery_info.append(element)
         # Gather Thermostats
-        for element in elk.thermostats:
-            if element:
-                #if element.included is True and element.enabled is True:
-                    discovery_info.append(element)
+        if elk_config['thermostat']['enabled']:
+            for element in elk.thermostats:
+                if element:
+                    if elk_config['thermostat']['included'][element._index] is True:
+                        discovery_info.append(element)
         # Gather Counters
-        for element in elk.counters:
-            if element:
-                #if element.included is True and element.enabled is True:
-                    discovery_info.append(element)
+        if elk_config['counter']['enabled']:
+            for element in elk.counters:
+                if element:
+                    if elk_config['counter']['included'][element._index] is True:
+                        discovery_info.append(element)
         # Gather Settings
-        for element in elk.settings:
-            if element:
-                #if element.included is True and element.enabled is True:
-                    discovery_info.append(element)
+        if elk_config['setting']['enabled']:
+            for element in elk.settings:
+                if element:
+                    if elk_config['setting']['included'][element._index] is True:
+                        discovery_info.append(element)
     # If discovery info was passed in, check if we want to include it
     #else:
     #    for element in discovery_info:
@@ -282,12 +289,17 @@ class ElkSensorDevice(Entity):
             if self._last_user_at:
                 attributes['Last User At'] = self._last_user_at
         if self._type == self.TYPE_SETTING:
-            attributes['Value Format'] = pretty_const(SettingFormat(self._element.value_format).name)
+            if self._element.value_format:
+                attributes['Value Format'] = pretty_const(SettingFormat(self._element.value_format).name)
         if self._type == self.TYPE_PANEL:
-            attributes['Elk M1 Version'] = self._element.elkm1_version
-            attributes['Elk M1XEP Version'] = self._element.elkm1_version
-            attributes['Real Time Clock'] = self._element.real_time_clock
-            attributes['ElkRP'] == pretty_const(ElkRPStatus(self._element.remote_programming_status).name)
+            if self._element.elkm1_version:
+                attributes['Elk M1 Version'] = self._element.elkm1_version
+            if self._element.elkm1_version:
+                attributes['Elk M1XEP Version'] = self._element.elkm1_version
+            if self._element.real_time_clock:
+                attributes['Real Time Clock'] = self._element.real_time_clock
+            if self._element.remote_programming_status is not None:
+                attributes['ElkRP'] = pretty_const(ElkRPStatus(self._element.remote_programming_status).name)
         return attributes
 
     @callback
@@ -295,7 +307,8 @@ class ElkSensorDevice(Entity):
         """Target of PyElk callback."""
         if attribute == 'last_user':
             self._last_user_at = time.time()
-        self.async_schedule_update_ha_state(True)
+        if self.hass:
+            self.async_schedule_update_ha_state(True)
 
     @asyncio.coroutine
     def async_update(self):
@@ -334,6 +347,15 @@ class ElkSensorDevice(Entity):
             self._hidden = False
         if self._type in [self.TYPE_COUNTER, self.TYPE_SETTING]:
             state = self._element.value
+        if self._type == self.TYPE_PANEL:
+            self._hidden = False
+            if self._element._elk._conn is not None:
+                if self._element.remote_programming_status:
+                    state = 'Paused'
+                else:
+                    state = 'Normal'
+            else:
+                state = 'Disconnected'
         if state is not None:
             self._state = state
         else:

@@ -35,15 +35,17 @@ def async_setup_platform(hass, config: ConfigType,
     # If no discovery info was passed in, discover automatically
     if len(discovery_info) == 0:
         # Gather outputs
-        for element in elk.outputs:
-            if element:
-                #if element.included is True and element.enabled is True:
-                    discovery_info.append(element)
+        if elk_config['output']['enabled']:
+            for element in elk.outputs:
+                if element:
+                    if elk_config['output']['included'][element._index] is True:
+                        discovery_info.append(element)
         # Gather tasks
-        for element in elk.tasks:
-            if element:
-                #if element.included is True and element.enabled is True:
-                    discovery_info.append(element)
+        if elk_config['task']['enabled']:
+            for element in elk.tasks:
+                if element:
+                    if elk_config['task']['included'][element._index] is True:
+                        discovery_info.append(element)
     # If discovery info was passed in, check if we want to include it
     #else:
     #    for element in discovery_info:
@@ -102,7 +104,8 @@ class ElkOutputDevice(ToggleEntity):
     @callback
     def trigger_update(self, attribute, value):
         """Target of PyElk callback."""
-        self.async_schedule_update_ha_state(True)
+        if self.hass:
+            self.async_schedule_update_ha_state(True)
 
     @asyncio.coroutine
     def async_update(self):
@@ -117,8 +120,6 @@ class ElkOutputDevice(ToggleEntity):
     def device_state_attributes(self):
         """Return the state attributes of the switch."""
         hidden = self._element.is_default_name()
-        if self._element._index < 10:
-            hidden = False
         return {
             'hidden': hidden #self._element.is_default_name(),
             }
@@ -173,7 +174,8 @@ class ElkTaskDevice(ToggleEntity):
         """Target of PyElk callback."""
         if attribute == 'last_change':
             self._state = STATE_ON
-        self.async_schedule_update_ha_state(True)
+        if self.hass:
+            self.async_schedule_update_ha_state(True)
 
     @asyncio.coroutine
     def async_update(self):

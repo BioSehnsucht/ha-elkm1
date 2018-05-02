@@ -45,11 +45,12 @@ def async_setup_platform(hass, config: ConfigType,
     from elkm1.thermostats import Thermostat as ElkThermostat
     # If no discovery info was passed in, discover automatically
     if len(discovery_info) == 0:
-        # Gather areas
-        for element in elk.thermostats:
-            if element:
-                #if node.included is True and node.enabled is True:
-                    discovery_info.append(element)
+        # Gather thermostats
+        if elk_config['thermostat']['enabled']:
+            for element in elk.thermostats:
+                if element:
+                    if elk_config['thermostat']['included'][element._index] is True:
+                        discovery_info.append(element)
     # If discovery info was passed in, check if we want to include it
     #else:
     #    for node in discovery_info:
@@ -91,7 +92,8 @@ class ElkClimateDevice(ClimateDevice):
     @callback
     def trigger_update(self, attribute, value):
         """Target of PyElk callback."""
-        self.async_schedule_update_ha_state(True)
+        if self.hass:
+            self.async_schedule_update_ha_state(True)
 
     @property
     def supported_features(self):
