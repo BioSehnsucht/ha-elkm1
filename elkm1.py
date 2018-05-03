@@ -36,7 +36,7 @@ from homeassistant.helpers.typing import ConfigType # noqa
 
 DOMAIN = "elkm1"
 REQUIREMENTS = [
-    'elkm1==0.3.7',
+    'elkm1==0.4.0',
     ]
 
 CONF_AREA = 'area'
@@ -293,7 +293,7 @@ def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     @asyncio.coroutine
     def connect():
         _LOGGER.debug("Elk connect")
-        yield from elk.connect()
+        yield from elk._connect()
 
     hass.async_add_job(connect)
 
