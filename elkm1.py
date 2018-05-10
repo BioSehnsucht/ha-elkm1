@@ -260,7 +260,7 @@ def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
                             else:
                                 num_start = housecode_to_int(ranges)
                             if num_start is not None:
-                                result.append(num_start)
+                                result.append(num_start - 1)
                     for element in result:
                         if element < max and element >= 0:
                             elk_config[subconfig][listset][element] = True
