@@ -5,6 +5,7 @@ Each non-Empty Area will be created as a separate Alarm panel in HASS.
 """
 import asyncio
 import logging
+import time
 from typing import Callable  # noqa
 
 from homeassistant.helpers.typing import ConfigType
@@ -69,7 +70,7 @@ def async_setup_platform(hass, config: ConfigType,
         else:
             continue
         if element_name not in discovered_devices:
-            device = ElkAreaDevice(element, elk)
+            device = ElkAreaDevice(element, elk, hass)
             _LOGGER.debug('Loading Elk %s: %s', element.__class__.__name__, element.name)
             discovered_devices[element_name] = device
             devices.append(device)
@@ -83,7 +84,7 @@ def async_setup_platform(hass, config: ConfigType,
 class ElkAreaDevice(alarm.AlarmControlPanel):
     """Representation of an Area / Partition within the Elk M1 alarm panel."""
 
-    def __init__(self, area, elk):
+    def __init__(self, area, elk, hass):
         """Initialize Area as Alarm Control Panel."""
         self._element = area
         self._area = self._element.index + 1
@@ -94,31 +95,43 @@ class ElkAreaDevice(alarm.AlarmControlPanel):
         self._name = 'elkm1_' + self._element.default_name('_').lower()
         self.entity_id = 'alarm_control_panel.' + self._name
         self._keypads = []
-        self._keypads_count = 0
-        self._zones_count = 0
-        #self._sync_keypads()
-        #self._sync_zones()
+        self._zones = []
+        self._last_accessed_at = 0
+        self._last_armed_at = 0
+        self._last_disarmed_at = 0
+        self._last_user_at = 0
+        self._last_user_num = None
+        self._last_user_name = None
+        self._last_keypad_num = None
+        self._last_keypad_name = None
+        self._last_keypad_event = None
         self._element.add_callback(self.trigger_update)
+        hass.bus.async_listen('elkm1_sensor_event', self._sensor_event)
+        self._sync_done = False
+        self._armed_status = None
 
-    def _sync_keypads(self):
-        """Synchronize list of member keypads and update callbacks."""
-        keypad_list = []
-        for keypad in enumerate(self._elk.keypads):
-            if keypad.area == self._element.index:
-                keypad.add_callback(self.trigger_update)
-                keypad_list.append(keypad.area)
-            else:
-                keypad.remove_callback(self.trigger_update)
-        self._keypads = keypad_list
-        self._keypads_count = len(keypad_list)
-
-    def _sync_zones(self):
-        """Synchronize count of member zones."""
-        zone_list = []
-        for zone in enumerate(self._elk.zones):
-            if zone.area == self._area:
-                zone_list.append(zone.area)
-        self._zones_count = len(zone_list)
+    def _sensor_event(self, event):
+        event_data = event.data
+        number = event_data['number']
+        if event_data['area'] == self._area:
+            if event_data['type'] == 'zone' and number not in self._zones:
+                    self._zones.append(number)
+            if event_data['type'] == 'keypad' and number not in self._keypads:
+                    self._keypads.append(number)
+            if event_data['attribute'] == 'last_user':
+                self._last_keypad_event = event_data
+                self._last_user_at = event_data['user_at']
+                self._last_user_num = event_data['user_num']
+                self._last_user_name = event_data['user_name']
+                self._last_keypad_num = event_data['number']
+                self._last_keypad_name = event_data['name']
+        else:
+            if event_data['type'] == 'zone' and number in self._zones:
+                    self._zones.remove(number)
+            if event_data['type'] == 'keypad' and number in self._keypads:
+                    self._keypads.remove(number)
+        if self.hass:
+            self.async_schedule_update_ha_state(True)
 
     @property
     def name(self):
@@ -147,14 +160,16 @@ class ElkAreaDevice(alarm.AlarmControlPanel):
         from elkm1.util import pretty_const
         attrs = {
             'hidden': self._hidden,
-            #'State': self._state,
-            #'last_armed_at': self._device.last_armed_at,
-            #'last_disarmed_at': self._device.last_disarmed_at,
-            #'last_user_num': self._device.last_user_num,
-            #'last_user_at': self._device.last_user_at,
-            #'last_user_name': self._device.last_user_name,
-            #'last_keypad_num': self._device.last_keypad_num,
-            #'last_keypad_name': self._device.last_keypad_name,
+            'Last Armed At': self._last_armed_at,
+            'Last Disarmed At': self._last_disarmed_at,
+            'Last User Number': self._last_user_num,
+            'Last User At': self._last_user_at,
+            'Last User Name': self._last_user_name,
+            'Last Keypad Number': self._last_keypad_num,
+            'Last Keypad Name': self._last_keypad_name,
+            'Readiness': STATE_UNKNOWN,
+            'Arm Status': STATE_UNKNOWN,
+            'Alarm': STATE_UNKNOWN
             }
         if self._element.arm_up_state is not None:
             attrs['Readiness'] = pretty_const(ArmUpState(self._element.arm_up_state).name)
@@ -167,6 +182,15 @@ class ElkAreaDevice(alarm.AlarmControlPanel):
     @callback
     def trigger_update(self, attribute, value):
         """Target of PyElk callback."""
+        from elkm1.const import ArmedStatus
+        if attribute == 'armed_status':
+            if self._sync_done:
+                if value == ArmedStatus.DISARMED.value and value != self._armed_status:
+                    self._last_disarmed_at = time.time()
+                elif value != self._armed_status:
+                    self._last_armed_at = time.time()
+            else:
+                self._sync_done = True
         if self.hass:
             self.async_schedule_update_ha_state(True)
 
@@ -175,20 +199,21 @@ class ElkAreaDevice(alarm.AlarmControlPanel):
         """Get the latest data and update the state."""
         from elkm1.const import ArmedStatus, AlarmState
         # Set status based on arm state
-        if self._element.armed_status is not None:
-            if self._element.armed_status == ArmedStatus.DISARMED.value:
+        self._armed_status = self._element.armed_status
+        if self._armed_status is not None:
+            if self._armed_status == ArmedStatus.DISARMED.value:
                 self._state = STATE_ALARM_DISARMED
-            elif self._element.armed_status == ArmedStatus.ARMED_AWAY.value:
+            elif self._armed_status == ArmedStatus.ARMED_AWAY.value:
                 self._state = STATE_ALARM_ARMED_AWAY
-            elif self._element.armed_status == ArmedStatus.ARMED_STAY.value:
+            elif self._armed_status == ArmedStatus.ARMED_STAY.value:
                 self._state = STATE_ALARM_ARMED_HOME
-            elif self._element.armed_status == ArmedStatus.ARMED_STAY_INSTANT.value:
+            elif self._armed_status == ArmedStatus.ARMED_STAY_INSTANT.value:
                 self._state = STATE_ALARM_ARMED_HOME
-            elif self._element.armed_status == ArmedStatus.ARMED_TO_NIGHT.value:
+            elif self._armed_status == ArmedStatus.ARMED_TO_NIGHT.value:
                 self._state = STATE_ALARM_ARMED_HOME
-            elif self._element.armed_status == ArmedStatus.ARMED_TO_NIGHT_INSTANT.value:
+            elif self._armed_status == ArmedStatus.ARMED_TO_NIGHT_INSTANT.value:
                 self._state = STATE_ALARM_ARMED_HOME
-            elif self._element.armed_status == ArmedStatus.ARMED_TO_VACATION.value:
+            elif self._armed_status == ArmedStatus.ARMED_TO_VACATION.value:
                 self._state = STATE_ALARM_ARMED_AWAY
         else:
             self._state = STATE_UNKNOWN
@@ -203,18 +228,11 @@ class ElkAreaDevice(alarm.AlarmControlPanel):
         if self._element.alarm_state is not None:
             if self._element.alarm_state != AlarmState.NO_ALARM_ACTIVE.value:
                 self._state = STATE_ALARM_TRIGGERED
-        # If we should be hidden due to lack of member devices, hide us
-        # TODO: Hide based on name being set?
-        #if (len(self._keypads_count) == 0) and (
-        #        self._zones_count == 0):
-        #    self._hidden = True
-        #    #_LOGGER.debug('hiding alarm ' + self._name + ' with ' + str(self._element.member_keypads_count) + ' keypads and ' + str(self._element.member_zones_count) + ' zones')
-        #else:
-        #    self._hidden = False
-        #    #_LOGGER.debug('unhiding alarm ' + self._name + ' with ' + str(self._element.member_keypads_count) + ' keypads and ' + str(self._element.member_zones_count) + ' zones')
-        # Update which keypads and zones are members of this Area
-        #self._sync_keypads()
-        #self._sync_zones()
+        # If we should be hidden due to lack of member devices and default name, hide us
+        if (len(self._keypads) == 0) and (len(self._zones) == 0) and (self._element.is_default_name()):
+            self._hidden = True
+        else:
+            self._hidden = False
         return
 
     def alarm_disarm(self, code=None):

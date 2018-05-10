@@ -88,7 +88,7 @@ def async_setup_platform(hass, config: ConfigType,
             element_name = 'sensor.' + 'elkm1_' + element.default_name('_')
             if element_name not in discovered_devices:
                 _LOGGER.debug('Loading Elk %s: %s', element.__class__.__name__, element.name)
-                device = ElkSensorDevice(element)
+                device = ElkSensorDevice(element, elk, hass)
                 discovered_devices[element_name] = device
                 devices.append(device)
             else:
@@ -113,7 +113,7 @@ class ElkSensorDevice(Entity):
     TYPE_COUNTER = 7
     TYPE_SETTING = 8
 
-    def __init__(self, device):
+    def __init__(self, device, elk, hass):
         """Initialize device sensor."""
         from elkm1.const import ZoneType, ZoneLogicalStatus, ZonePhysicalStatus
         from elkm1.zones import Zone as ElkZone
@@ -122,11 +122,14 @@ class ElkSensorDevice(Entity):
         from elkm1.counters import Counter as ElkCounter
         from elkm1.settings import Setting as ElkSetting
         from elkm1.panel import Panel as ElkPanel
+        self._elk = elk
         self._type = None
         self._hidden = True
         self._element = device
-        self._last_user = None
+        self._last_user_name = None
+        self._last_user_num = None
         self._last_user_at = 0
+        self._area = None
 
         self._name = 'elkm1_' + self._element.default_name('_').lower()
         if isinstance(device, ElkZone):
@@ -155,6 +158,8 @@ class ElkSensorDevice(Entity):
         if isinstance(device, ElkPanel):
             # Panel sensor
             self._type = self.TYPE_PANEL
+        if self._type in [self.TYPE_KEYPAD, self.TYPE_ZONE, self.TYPE_ZONE_TEMP, self.TYPE_ZONE_VOLTAGE]:
+            self._area = self._element._index + 1
         self.entity_id = 'sensor.' + self._name
         self._state = None
         #if hasattr(self._element, '_temp_enabled'):
@@ -202,6 +207,7 @@ class ElkSensorDevice(Entity):
             }
         self._definition_temperature = ZoneType.TEMPERATURE.value
         self._element.add_callback(self.trigger_update)
+        self.hass = hass
 
     @property
     def temperature_unit(self):
@@ -280,12 +286,14 @@ class ElkSensorDevice(Entity):
     #    if (self._type == self.TYPE_COUNTER) or (
     #            self._type == self.TYPE_SETTING):
     #        attributes['hidden'] = True
-        if self._type in [self.TYPE_KEYPAD, self.TYPE_ZONE, self.TYPE_ZONE_TEMP, self.TYPE_ZONE_VOLTAGE]:
-            if self._element.area is not None:
-                attributes['Area'] = self._element.area + 1
+        if self._area is not None:
+            attributes['Area'] = self._area
         if self._type == self.TYPE_KEYPAD:
-            if self._element.last_user:
-                attributes['Last User'] = self._element.last_user + 1
+            attributes.update({'Last User Name': None, 'Last User Number': None, 'Last User At': None})
+            if self._last_user_name:
+                attributes['Last User Name'] = self._last_user_name
+            if self._last_user_num:
+                attributes['Last User Number'] = self._last_user_num
             if self._last_user_at:
                 attributes['Last User At'] = self._last_user_at
         if self._type == self.TYPE_SETTING:
@@ -305,8 +313,34 @@ class ElkSensorDevice(Entity):
     @callback
     def trigger_update(self, attribute, value):
         """Target of PyElk callback."""
+        event_data = {
+                'type': '',
+                'area': 0,
+                'number': self._element._index + 1,
+                'name': self._element.name,
+                'attribute': attribute
+            }
+        event_send = False
+        if self._type in [self.TYPE_KEYPAD, self.TYPE_ZONE, self.TYPE_ZONE_TEMP, self.TYPE_ZONE_VOLTAGE]:
+            event_data['area'] = self._area
+        if self._type in [self.TYPE_ZONE, self.TYPE_ZONE_TEMP, self.TYPE_ZONE_VOLTAGE]:
+            event_data['type'] = 'zone'
+        if self._type == self.TYPE_KEYPAD:
+            event_data['type'] = 'keypad'
         if attribute == 'last_user':
+            event_send = True
             self._last_user_at = time.time()
+            self._last_user_num = value + 1
+            self._last_user_name = self._element._elk.users[value].name
+            event_data['user_at'] = self._last_user_at
+            event_data['user_num'] = self._last_user_num,
+            event_data['user_name'] = self._last_user_name
+        if attribute == 'area':
+            event_send = True
+            self._area = self._element.area + 1
+            event_data['area'] = self._area
+        if event_send and self.hass and event_data['type'] != '':
+            self.hass.bus.fire('elkm1_sensor_event', event_data)
         if self.hass:
             self.async_schedule_update_ha_state(True)
 
@@ -315,10 +349,6 @@ class ElkSensorDevice(Entity):
         """Get the latest data and update the state."""
         from elkm1.const import ZoneType, ZoneLogicalStatus, ZonePhysicalStatus
         from elkm1.util import pretty_const
-        #if hasattr(self._element, '_temp_enabled'):
-        #    self._hidden = not self._element.temp_enabled
-        #else:
-        #    self._hidden = not self._element.enabled
         # Set state according to device type
         state = None
         if self._type == self.TYPE_ZONE:
