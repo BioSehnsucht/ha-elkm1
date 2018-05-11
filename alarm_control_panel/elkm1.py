@@ -48,7 +48,7 @@ def async_setup_platform(hass, config: ConfigType,
             for element in elk.areas:
                 if element:
                     if elk_config['area']['included'][element._index] is True:
-                        discovery_info.append(element)
+                        discovery_info.append([element, elk_config['area']['shown'][element._index]])
     ## If discovery info was passed in, check if we want to include it
     #else:
     #    for node in discovery_info:
@@ -59,8 +59,8 @@ def async_setup_platform(hass, config: ConfigType,
     # Add discovered devices
     element_name = ''
     for element in discovery_info:
-        if isinstance(element, ElkArea):
-            element_name = 'alarm_control_panel.' + 'elkm1_' + element.default_name('_')
+        if isinstance(element[0], ElkArea):
+            element_name = 'alarm_control_panel.' + 'elkm1_' + element[0].default_name('_')
         #elif isinstance(node, ElkKeypad):
         #    if node.area > 0:
         #        node_name = 'alarm_control_panel.' + 'elk_area_' + format(node.area, '01')
@@ -70,12 +70,12 @@ def async_setup_platform(hass, config: ConfigType,
         else:
             continue
         if element_name not in discovered_devices:
-            device = ElkAreaDevice(element, elk, hass)
-            _LOGGER.debug('Loading Elk %s: %s', element.__class__.__name__, element.name)
+            device = ElkAreaDevice(element[0], elk, hass, element[1])
+            _LOGGER.debug('Loading Elk %s: %s', element[0].__class__.__name__, element[0].name)
             discovered_devices[element_name] = device
             devices.append(device)
         else:
-            _LOGGER.debug('Skipping already loaded Elk %s: %s', element.__class__.__name__, element.name)
+            _LOGGER.debug('Skipping already loaded Elk %s: %s', element[0].__class__.__name__, element[0].name)
 
     async_add_devices(devices, True)
     return True
@@ -84,7 +84,7 @@ def async_setup_platform(hass, config: ConfigType,
 class ElkAreaDevice(alarm.AlarmControlPanel):
     """Representation of an Area / Partition within the Elk M1 alarm panel."""
 
-    def __init__(self, area, elk, hass):
+    def __init__(self, area, elk, hass, show_override):
         """Initialize Area as Alarm Control Panel."""
         self._element = area
         self._area = self._element.index + 1
@@ -109,6 +109,7 @@ class ElkAreaDevice(alarm.AlarmControlPanel):
         hass.bus.async_listen('elkm1_sensor_event', self._sensor_event)
         self._sync_done = False
         self._armed_status = None
+        self._show_override = show_override
 
     def _sensor_event(self, event):
         event_data = event.data
@@ -158,8 +159,12 @@ class ElkAreaDevice(alarm.AlarmControlPanel):
         """Return the state attributes of the sensor."""
         from elkm1.const import ArmedStatus, ArmUpState, AlarmState
         from elkm1.util import pretty_const
+        if self._show_override is None:
+            hidden = self._hidden
+        else:
+            hidden = not self._show_override
         attrs = {
-            'hidden': self._hidden,
+            'hidden': hidden,
             'Last Armed At': self._last_armed_at,
             'Last Disarmed At': self._last_disarmed_at,
             'Last User Number': self._last_user_num,

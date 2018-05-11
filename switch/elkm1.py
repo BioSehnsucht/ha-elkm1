@@ -39,13 +39,13 @@ def async_setup_platform(hass, config: ConfigType,
             for element in elk.outputs:
                 if element:
                     if elk_config['output']['included'][element._index] is True:
-                        discovery_info.append(element)
+                        discovery_info.append([element, elk_config['output']['shown'][element._index]])
         # Gather tasks
         if elk_config['task']['enabled']:
             for element in elk.tasks:
                 if element:
                     if elk_config['task']['included'][element._index] is True:
-                        discovery_info.append(element)
+                        discovery_info.append([element, elk_config['task']['shown'][element._index]])
     # If discovery info was passed in, check if we want to include it
     #else:
     #    for element in discovery_info:
@@ -56,20 +56,20 @@ def async_setup_platform(hass, config: ConfigType,
     # Add discovered devices
     element_name = ''
     for element in discovery_info:
-        if isinstance(element, ElkOutput) or isinstance(element, ElkTask):
-            element_name = 'switch.' + 'elkm1_' + element.default_name('_')
+        if isinstance(element[0], ElkOutput) or isinstance(element[0], ElkTask):
+            element_name = 'switch.' + 'elkm1_' + element[0].default_name('_')
         else:
             continue
         if element_name not in discovered_devices:
-            if isinstance(element, ElkOutput):
-                device = ElkOutputDevice(element)
-            if isinstance(element, ElkTask):
-                device = ElkTaskDevice(element)
-            _LOGGER.debug('Loading Elk %s: %s', element.__class__.__name__, element.name)
+            if isinstance(element[0], ElkOutput):
+                device = ElkOutputDevice(element[0], elk, hass, element[1])
+            if isinstance(element[0], ElkTask):
+                device = ElkTaskDevice(element[0], elk, hass, element[1])
+            _LOGGER.debug('Loading Elk %s: %s', element[0].__class__.__name__, element[0].name)
             discovered_devices[element_name] = device
             devices.append(device)
         else:
-            _LOGGER.debug('Skipping already loaded Elk %s: %s', element.__class__.__name__, element.name)
+            _LOGGER.debug('Skipping already loaded Elk %s: %s', element[0].__class__.__name__, element[0].name)
 
     async_add_devices(devices, True)
     return True
@@ -78,13 +78,14 @@ def async_setup_platform(hass, config: ConfigType,
 class ElkOutputDevice(ToggleEntity):
     """Elk Output as Toggle Switch."""
 
-    def __init__(self, output):
+    def __init__(self, output, elk, hass, show_override):
         """Initialize output switch."""
         self._element = output
         self._name = 'elkm1_' + self._element.default_name('_').lower()
         self.entity_id = 'switch.' + self._name
         self._state = None
         self._element.add_callback(self.trigger_update)
+        self._show_override = show_override
 
     @property
     def name(self):
@@ -119,7 +120,10 @@ class ElkOutputDevice(ToggleEntity):
     @property
     def device_state_attributes(self):
         """Return the state attributes of the switch."""
-        hidden = self._element.is_default_name()
+        if self._show_override is None:
+            hidden = self._element.is_default_name()
+        else:
+            hidden = not self._show_override
         return {
             'hidden': hidden #self._element.is_default_name(),
             }
@@ -146,13 +150,14 @@ class ElkOutputDevice(ToggleEntity):
 class ElkTaskDevice(ToggleEntity):
     """Elk Task as Toggle Switch."""
 
-    def __init__(self, task):
+    def __init__(self, task, elk, hass, show_override):
         """Initialize task switch."""
         self._element = task
         self._name = 'elkm1_' + self._element.default_name('_').lower()
         self.entity_id = 'switch.' + self._name
         self._state = STATE_OFF
         self._element.add_callback(self.trigger_update)
+        self._show_override = show_override
 
     @property
     def name(self):
@@ -186,9 +191,13 @@ class ElkTaskDevice(ToggleEntity):
     @property
     def device_state_attributes(self):
         """Return the state attributes of the switch."""
+        if self._show_override is None:
+            hidden = self._element.is_default_name()
+        else:
+            hidden = not self._show_override
         return {
-            'last_activated': self._element.last_change,
-            'hidden': self._element.is_default_name()
+            'Last Activated': self._element.last_change,
+            'hidden': hidden
             }
 
     @property

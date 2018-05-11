@@ -47,6 +47,7 @@ CONF_SETTING = 'setting'
 CONF_TASK = 'task'
 CONF_THERMOSTAT = 'thermostat'
 CONF_USER = 'user'
+CONF_PANEL = 'panel'
 CONF_PLC = 'plc' # Not light because HASS complains about this
 CONF_ZONE = 'zone'
 
@@ -194,7 +195,7 @@ def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
             return ((house - 1) * 16) + code
         return None
 
-    for subconfig in [CONF_AREA, CONF_COUNTER, CONF_KEYPAD, CONF_OUTPUT, CONF_PLC, CONF_SETTING, CONF_TASK, CONF_THERMOSTAT, CONF_USER, CONF_ZONE]:
+    for subconfig in [CONF_AREA, CONF_COUNTER, CONF_KEYPAD, CONF_OUTPUT, CONF_PANEL, CONF_PLC, CONF_SETTING, CONF_TASK, CONF_THERMOSTAT, CONF_USER, CONF_ZONE]:
         max = 0
         if subconfig == CONF_AREA:
             max = Max.AREAS.value
@@ -202,6 +203,8 @@ def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
             max = Max.COUNTERS.value
         elif subconfig == CONF_KEYPAD:
             max = Max.KEYPADS.value
+        elif subconfig == CONF_PANEL:
+            max = 1
         elif subconfig == CONF_PLC:
             max = Max.LIGHTS.value
         elif subconfig == CONF_OUTPUT:
@@ -264,13 +267,29 @@ def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
                     for element in result:
                         if element < max and element >= 0:
                             elk_config[subconfig][listset][element] = True
+        # Combine include / exclude into single True/False list
+        # True : include
+        # False : exclude
         included = [False] * max
         for element in range(0,max):
             if elk_config[subconfig][CONF_INCLUDE][element] and not elk_config[subconfig][CONF_EXCLUDE][element]:
                 included[element] = True
-        elk_config[subconfig]['included'] = included
         del elk_config[subconfig][CONF_INCLUDE]
         del elk_config[subconfig][CONF_EXCLUDE]
+        elk_config[subconfig]['included'] = included
+        # Combine show / hide into single True/False/None list
+        # True : force show
+        # False : force hide
+        # None : default automatic show/hide
+        shown = [None] * max
+        for element in range(0,max):
+            if elk_config[subconfig][CONF_SHOW][element] and not elk_config[subconfig][CONF_HIDE][element]:
+                shown[element] = True
+            if elk_config[subconfig][CONF_HIDE][element]:
+                shown[element] = False
+        del elk_config[subconfig][CONF_SHOW]
+        del elk_config[subconfig][CONF_HIDE]
+        elk_config[subconfig]['shown'] = shown
 
     _LOGGER.debug('Elk config : %s', elk_config)
 

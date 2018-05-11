@@ -40,7 +40,7 @@ def async_setup_platform(hass, config: ConfigType,
             for element in elk.lights:
                 if element:
                     if elk_config['plc']['included'][element._index] is True:
-                        discovery_info.append(element)
+                        discovery_info.append([element, elk_config['plc']['shown'][element._index]])
     # If discovery info was passed in, check if we want to include it
     #else:
     #    for node in discovery_info:
@@ -51,17 +51,17 @@ def async_setup_platform(hass, config: ConfigType,
     # Add discovered devices
     element_name = ''
     for element in discovery_info:
-        if isinstance(element, ElkLight):
-            element_name = 'light.' + 'elkm1_' + element.default_name('_')
+        if isinstance(element[0], ElkLight):
+            element_name = 'light.' + 'elkm1_' + element[0].default_name('_')
         else:
             continue
         if element_name not in discovered_devices:
-            device = ElkLightDevice(element)
-            _LOGGER.debug('Loading Elk %s: %s', element.__class__.__name__, element.name)
+            device = ElkLightDevice(element[0], elk, hass, element[1])
+            _LOGGER.debug('Loading Elk %s: %s', element[0].__class__.__name__, element[0].name)
             discovered_devices[element_name] = device
             devices.append(device)
         else:
-            _LOGGER.debug('Skipping already loaded Elk %s: %s', element.__class__.__name__, element.name)
+            _LOGGER.debug('Skipping already loaded Elk %s: %s', element[0].__class__.__name__, element[0].name)
 
     async_add_devices(devices, True)
     return True
@@ -70,7 +70,7 @@ def async_setup_platform(hass, config: ConfigType,
 class ElkLightDevice(Light):
     """Elk X10 device as Switch."""
 
-    def __init__(self, device):
+    def __init__(self, device, elk, hass, show_override):
         """Initialize X10 switch."""
         self._element = device
         self._name = 'elkm1_' + self._element.default_name('_').lower()
@@ -78,6 +78,7 @@ class ElkLightDevice(Light):
         self._state = None
         self._hidden = self._element.is_default_name() #not self._device.enabled
         self._element.add_callback(self.trigger_update)
+        self._show_override = show_override
 
     @property
     def name(self):
@@ -131,11 +132,15 @@ class ElkLightDevice(Light):
     @property
     def device_state_attributes(self):
         """Return the state attributes of the switch."""
+        if self._show_override is None:
+            hidden = self._hidden
+        else:
+            hidden = not self._show_override
         return {
             #'House Code': self._element.house_pretty,
             #'Device': self._element.device_pretty,
             #'unique_id': self._element.house_pretty + self._element.device_pretty,
-            'hidden': self._hidden,
+            'hidden': hidden,
             ATTR_BRIGHTNESS : round(self._brightness * 2.55),
             }
 

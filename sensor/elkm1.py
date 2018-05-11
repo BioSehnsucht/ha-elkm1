@@ -41,37 +41,37 @@ def async_setup_platform(hass, config: ConfigType,
     # If no discovery info was passed in, discover automatically
     if len(discovery_info) == 0:
         # Gather panel
-        discovery_info.append(elk.panel)
+        discovery_info.append([elk.panel, elk_config['panel']['shown'][0]])
         # Gather zones
         if elk_config['zone']['enabled']:
             for element in elk.zones:
                 if element:
                     if elk_config['zone']['included'][element._index] is True:
-                        discovery_info.append(element)
+                        discovery_info.append([element, elk_config['zone']['shown'][element._index]])
         # Gather Keypads
         if elk_config['keypad']['enabled']:
             for element in elk.keypads:
                 if element:
                     if elk_config['keypad']['included'][element._index] is True:
-                        discovery_info.append(element)
+                        discovery_info.append([element, elk_config['keypad']['shown'][element._index]])
         # Gather Thermostats
         if elk_config['thermostat']['enabled']:
             for element in elk.thermostats:
                 if element:
                     if elk_config['thermostat']['included'][element._index] is True:
-                        discovery_info.append(element)
+                        discovery_info.append([element, elk_config['thermostat']['shown'][element._index]])
         # Gather Counters
         if elk_config['counter']['enabled']:
             for element in elk.counters:
                 if element:
                     if elk_config['counter']['included'][element._index] is True:
-                        discovery_info.append(element)
+                        discovery_info.append([element, elk_config['counter']['shown'][element._index]])
         # Gather Settings
         if elk_config['setting']['enabled']:
             for element in elk.settings:
                 if element:
                     if elk_config['setting']['included'][element._index] is True:
-                        discovery_info.append(element)
+                        discovery_info.append([element, elk_config['setting']['shown'][element._index]])
     # If discovery info was passed in, check if we want to include it
     #else:
     #    for element in discovery_info:
@@ -82,17 +82,17 @@ def async_setup_platform(hass, config: ConfigType,
     # Add discovered devices
     element_name = ''
     for element in discovery_info:
-        if isinstance(element, ElkZone) or isinstance(element, ElkKeypad) or\
-        isinstance(element, ElkThermostat) or isinstance(element, ElkCounter) or\
-        isinstance(element, ElkSetting) or isinstance(element, ElkPanel):
-            element_name = 'sensor.' + 'elkm1_' + element.default_name('_')
+        if isinstance(element[0], ElkZone) or isinstance(element[0], ElkKeypad) or\
+        isinstance(element[0], ElkThermostat) or isinstance(element[0], ElkCounter) or\
+        isinstance(element[0], ElkSetting) or isinstance(element[0], ElkPanel):
+            element_name = 'sensor.' + 'elkm1_' + element[0].default_name('_')
             if element_name not in discovered_devices:
-                _LOGGER.debug('Loading Elk %s: %s', element.__class__.__name__, element.name)
-                device = ElkSensorDevice(element, elk, hass)
+                _LOGGER.debug('Loading Elk %s: %s', element[0].__class__.__name__, element[0].name)
+                device = ElkSensorDevice(element[0], elk, hass, element[1])
                 discovered_devices[element_name] = device
                 devices.append(device)
             else:
-                _LOGGER.debug('Skipping already loaded Elk %s: %s', element.__class__.__name__, element.name)
+                _LOGGER.debug('Skipping already loaded Elk %s: %s', element[0].__class__.__name__, element[0].name)
         else:
             continue
 
@@ -113,7 +113,7 @@ class ElkSensorDevice(Entity):
     TYPE_COUNTER = 7
     TYPE_SETTING = 8
 
-    def __init__(self, device, elk, hass):
+    def __init__(self, device, elk, hass, show_override):
         """Initialize device sensor."""
         from elkm1.const import ZoneType, ZoneLogicalStatus, ZonePhysicalStatus
         from elkm1.zones import Zone as ElkZone
@@ -130,6 +130,7 @@ class ElkSensorDevice(Entity):
         self._last_user_num = None
         self._last_user_at = 0
         self._area = None
+        self._show_override = show_override
 
         self._name = 'elkm1_' + self._element.default_name('_').lower()
         if isinstance(device, ElkZone):
@@ -158,8 +159,6 @@ class ElkSensorDevice(Entity):
         if isinstance(device, ElkPanel):
             # Panel sensor
             self._type = self.TYPE_PANEL
-        if self._type in [self.TYPE_KEYPAD, self.TYPE_ZONE, self.TYPE_ZONE_TEMP, self.TYPE_ZONE_VOLTAGE]:
-            self._area = self._element._index + 1
         self.entity_id = 'sensor.' + self._name
         self._state = None
         #if hasattr(self._element, '_temp_enabled'):
@@ -264,7 +263,9 @@ class ElkSensorDevice(Entity):
     @property
     def hidden(self):
         """Return the name of the sensor."""
-        return self._hidden
+        if self._show_override is None:
+            return self._hidden
+        return not self._show_override
 
     @property
     def device_state_attributes(self):
@@ -351,6 +352,8 @@ class ElkSensorDevice(Entity):
         from elkm1.util import pretty_const
         # Set state according to device type
         state = None
+        #if self._type in [self.TYPE_KEYPAD, self.TYPE_ZONE, self.TYPE_ZONE_TEMP, self.TYPE_ZONE_VOLTAGE]:
+        #    self._area = self._element.area + 1
         if self._type == self.TYPE_ZONE:
             state = pretty_const(ZoneLogicalStatus(self._element.logical_status).name)
             self._hidden = self._element.definition == ZoneType.DISABLED.value

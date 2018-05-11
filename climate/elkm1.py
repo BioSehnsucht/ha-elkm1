@@ -50,7 +50,7 @@ def async_setup_platform(hass, config: ConfigType,
             for element in elk.thermostats:
                 if element:
                     if elk_config['thermostat']['included'][element._index] is True:
-                        discovery_info.append(element)
+                        discovery_info.append([element, elk_config['thermostat']['shown'][element._index]])
     # If discovery info was passed in, check if we want to include it
     #else:
     #    for node in discovery_info:
@@ -61,17 +61,17 @@ def async_setup_platform(hass, config: ConfigType,
     # Add discovered devices
     element_name = ''
     for element in discovery_info:
-        if isinstance(element, ElkThermostat):
-            element_name = 'climate.' + 'elkm1_' + element.default_name('_')
+        if isinstance(element[0], ElkThermostat):
+            element_name = 'climate.' + 'elkm1_' + element[0].default_name('_')
         else:
             continue
         if element_name not in discovered_devices:
-            _LOGGER.debug('Loading Elk %s: %s', element.__class__.__name__, element.name)
-            device = ElkClimateDevice(element)
+            _LOGGER.debug('Loading Elk %s: %s', element[0].__class__.__name__, element[0].name)
+            device = ElkClimateDevice(element[0], elk, hass, element[1])
             discovered_devices[element_name] = device
             devices.append(device)
         else:
-            _LOGGER.debug('Skipping already loaded Elk %s: %s', element.__class__.__name__, element.name)
+            _LOGGER.debug('Skipping already loaded Elk %s: %s', element[0].__class__.__name__, element[0].name)
 
     async_add_devices(devices, True)
     return True
@@ -80,7 +80,7 @@ def async_setup_platform(hass, config: ConfigType,
 class ElkClimateDevice(ClimateDevice):
     """Elk connected thermostat as Climate device."""
 
-    def __init__(self, device):
+    def __init__(self, device, elk, hass, show_override):
         """Initialize device sensor."""
         self._type = None
         self._element = device
@@ -88,6 +88,7 @@ class ElkClimateDevice(ClimateDevice):
         self._name = 'elkm1_' + self._element.default_name('_').lower()
         self.entity_id = 'climate.' + self._name
         self._element.add_callback(self.trigger_update)
+        self._show_override = show_override
 
     @callback
     def trigger_update(self, attribute, value):
@@ -153,8 +154,12 @@ class ElkClimateDevice(ClimateDevice):
         # TODO: convert RH from Elk to AH ?
         #if self.current_humidity > 0:
         #    humidity = self.current_humidity
+        if self._show_override is None:
+            hidden = self._hidden
+        else:
+            hidden = not self._show_override
         data = {
-            'hidden': self._hidden,
+            'hidden': hidden,
             'temp_unit' : self.temperature_unit,
             }
         # Pending Omni2 support
