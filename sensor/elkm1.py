@@ -289,6 +289,7 @@ class ElkSensorDevice(Entity):
     #        attributes['hidden'] = True
         if self._area is not None:
             attributes['Area'] = self._area
+
         if self._type == self.TYPE_KEYPAD:
             attributes.update({'Last User Name': None, 'Last User Number': None, 'Last User At': None})
             if self._last_user_name:
@@ -352,8 +353,21 @@ class ElkSensorDevice(Entity):
         from elkm1.util import pretty_const
         # Set state according to device type
         state = None
-        #if self._type in [self.TYPE_KEYPAD, self.TYPE_ZONE, self.TYPE_ZONE_TEMP, self.TYPE_ZONE_VOLTAGE]:
-        #    self._area = self._element.area + 1
+        if self._type in [self.TYPE_KEYPAD, self.TYPE_ZONE, self.TYPE_ZONE_TEMP, self.TYPE_ZONE_VOLTAGE]:
+            if self._element.area is not None and self._area is None:
+                self._area = self._element.area + 1
+                event_data = {
+                    'type': '',
+                    'area': self._area,
+                    'number': self._element._index + 1,
+                    'name': self._element.name,
+                    'attribute': 'area'
+                    }
+                if self._type == self.TYPE_KEYPAD:
+                    event_data['type'] = 'keypad'
+                else:
+                    event_data['type'] = 'zone'
+                self.hass.bus.fire('elkm1_sensor_event', event_data)
         if self._type == self.TYPE_ZONE:
             state = pretty_const(ZoneLogicalStatus(self._element.logical_status).name)
             self._hidden = self._element.definition == ZoneType.DISABLED.value
