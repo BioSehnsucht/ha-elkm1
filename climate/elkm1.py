@@ -304,9 +304,9 @@ class ElkClimateDevice(ClimateDevice):
         """Set new target fan mode."""
         from elkm1.const import ThermostatSetting, ThermostatFan
         if fan == STATE_AUTO:
-            self._element.set(ThermostatSetting.FAN.value, ThermostatFan.FAN_AUTO.value)
+            self._element.set(ThermostatSetting.FAN.value, ThermostatFan.AUTO.value)
         elif fan == STATE_ON:
-            self._element.set(ThermostatSetting.FAN.value, ThermostatFan.FAN_ON.value)
+            self._element.set(ThermostatSetting.FAN.value, ThermostatFan.ON.value)
 
     def set_temperature(self, **kwargs):
         """Set new target temperature."""
