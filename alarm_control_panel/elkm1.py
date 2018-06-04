@@ -176,10 +176,17 @@ class ElkAreaDevice(alarm.AlarmControlPanel):
             'Arm Status': STATE_UNKNOWN,
             'Alarm': STATE_UNKNOWN
             }
+        #attrs['timer1'] = self._element.timer1
+        #attrs['timer2'] = self._element.timer2
+        #if self._element.is_exit == True:
+        #    attrs['timertype'] = 'Exit'
+        #else:
+        #    attrs['timertype'] = 'Entry'
+        #attrs['timerstamp'] = self._element.timer_timerstamp
         if self._element.arm_up_state is not None:
             attrs['Readiness'] = pretty_const(ArmUpState(self._element.arm_up_state).name)
         if self._element.armed_status is not None:
-            attrs['Arm Status'] = pretty_const(ArmedStatus(self._element.armed_status).name),
+            attrs['Arm Status'] = pretty_const(ArmedStatus(str(self._element.armed_status)).name),
         if self._element.alarm_state is not None:
             attrs['Alarm'] = pretty_const(AlarmState(self._element.alarm_state).name),
         return attrs

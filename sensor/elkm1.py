@@ -167,8 +167,8 @@ class ElkSensorDevice(Entity):
         #    self._hidden = not self._element.enabled
         self._icon = {
             ZoneType.DISABLED.value : '',
-            ZoneType.BURLAR_ENTRY_EXIT_1.value : 'alarm-bell',
-            ZoneType.BURLAR_ENTRY_EXIT_2.value : 'alarm-bell',
+            ZoneType.BURGLAR_ENTRY_EXIT_1.value : 'alarm-bell',
+            ZoneType.BURGLAR_ENTRY_EXIT_2.value : 'alarm-bell',
             ZoneType.BURGLAR_PERIMETER_INSTANT.value : 'alarm-bell',
             ZoneType.BURGLAR_INTERIOR.value : 'alarm-bell',
             ZoneType.BURGLAR_INTERIOR_FOLLOWER.value : 'alarm-bell',
@@ -299,8 +299,13 @@ class ElkSensorDevice(Entity):
             if self._last_user_at:
                 attributes['Last User At'] = self._last_user_at
         if self._type == self.TYPE_SETTING:
+            attributes['Value Format'] = None
             if self._element.value_format:
                 attributes['Value Format'] = pretty_const(SettingFormat(self._element.value_format).name)
+        if self._type == self.TYPE_THERMOSTAT:
+            attributes['Humidity'] = None
+            if self._element.humidity:
+                attributes['Humidity'] = self._element.humidity
         if self._type == self.TYPE_PANEL:
             if self._element.elkm1_version:
                 attributes['Elk M1 Version'] = self._element.elkm1_version
