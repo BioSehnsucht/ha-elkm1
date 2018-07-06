@@ -13,7 +13,7 @@ from homeassistant.helpers.typing import ConfigType
 import homeassistant.components.alarm_control_panel as alarm
 from homeassistant.const import (
     STATE_ALARM_ARMED_AWAY, STATE_ALARM_ARMED_HOME, STATE_ALARM_DISARMED,
-    STATE_ALARM_ARMING, STATE_ALARM_DISARMING, STATE_ALARM_TRIGGERED,
+    STATE_ALARM_ARMING, STATE_ALARM_PENDING, STATE_ALARM_TRIGGERED,
     STATE_ALARM_ARMED_NIGHT, STATE_UNKNOWN
     )
 
@@ -176,13 +176,6 @@ class ElkAreaDevice(alarm.AlarmControlPanel):
             'Arm Status': STATE_UNKNOWN,
             'Alarm': STATE_UNKNOWN
             }
-        #attrs['timer1'] = self._element.timer1
-        #attrs['timer2'] = self._element.timer2
-        #if self._element.is_exit == True:
-        #    attrs['timertype'] = 'Exit'
-        #else:
-        #    attrs['timertype'] = 'Entry'
-        #attrs['timerstamp'] = self._element.timer_timerstamp
         if self._element.arm_up_state is not None:
             attrs['Readiness'] = pretty_const(ArmUpState(self._element.arm_up_state).name)
         if self._element.armed_status is not None:
@@ -234,17 +227,17 @@ class ElkAreaDevice(alarm.AlarmControlPanel):
                 self._state = STATE_ALARM_ARMED_AWAY
         else:
             self._state = STATE_UNKNOWN
-        # TODO : Implement detection of entry/exit timer running in Gwww lib
-        ## If there's an entry / exit timer running,
-        ## show that we're pending arming
-        #if self._element.timers_active is self._element.STATUS_TIMER_ENTRY:
-        #    self._state = STATE_ALARM_ARMING
-        #if self._element.timers_active is self._element.STATUS_TIMER_EXIT:
-        #    self._state = STATE_ALARM_DISARMING
         # If alarm is triggered, show that instead
         if self._element.alarm_state is not None:
             if self._element.alarm_state != AlarmState.NO_ALARM_ACTIVE.value:
                 self._state = STATE_ALARM_TRIGGERED
+        # Unless there's an entry / exit timer running,
+        # show that we're arming or pending alarm accordingly
+        if self._element.timer1 > 0 or self._element.timer2 > 0:
+            if self._element.is_exit:
+                self._state = STATE_ALARM_ARMING
+            else:
+                self._state = STATE_ALARM_PENDING
         # If we should be hidden due to lack of member devices and default name, hide us
         if (len(self._keypads) == 0) and (len(self._zones) == 0) and (self._element.is_default_name()):
             self._hidden = True
