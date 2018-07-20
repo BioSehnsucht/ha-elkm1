@@ -220,9 +220,9 @@ class ElkAreaDevice(alarm.AlarmControlPanel):
             elif self._armed_status == ArmedStatus.ARMED_STAY_INSTANT.value:
                 self._state = STATE_ALARM_ARMED_HOME
             elif self._armed_status == ArmedStatus.ARMED_TO_NIGHT.value:
-                self._state = STATE_ALARM_ARMED_HOME
+                self._state = STATE_ALARM_ARMED_NIGHT
             elif self._armed_status == ArmedStatus.ARMED_TO_NIGHT_INSTANT.value:
-                self._state = STATE_ALARM_ARMED_HOME
+                self._state = STATE_ALARM_ARMED_NIGHT
             elif self._armed_status == ArmedStatus.ARMED_TO_VACATION.value:
                 self._state = STATE_ALARM_ARMED_AWAY
         else:
@@ -262,4 +262,10 @@ class ElkAreaDevice(alarm.AlarmControlPanel):
         """Send arm away command."""
         from elkm1.const import ArmLevel
         self._element.arm(ArmLevel.ARMED_AWAY.value, int(code))
+        return
+
+    def alarm_arm_night(self, code=None):
+        """Send arm night command."""
+        from elkm1.const import ArmLevel
+        self._element.arm(ArmLevel.ARMED_NIGHT.value, int(code))
         return
