@@ -14,7 +14,7 @@ import homeassistant.components.alarm_control_panel as alarm
 from homeassistant.const import (
     STATE_ALARM_ARMED_AWAY, STATE_ALARM_ARMED_HOME, STATE_ALARM_DISARMED,
     STATE_ALARM_ARMING, STATE_ALARM_PENDING, STATE_ALARM_TRIGGERED,
-    STATE_ALARM_ARMED_NIGHT, STATE_UNKNOWN
+    STATE_ALARM_ARMED_NIGHT, STATE_UNKNOWN, STATE_ALARM_DISARMING
     )
 
 from homeassistant.core import callback
@@ -22,6 +22,17 @@ from homeassistant.core import callback
 DEPENDENCIES = ['elkm1']
 
 _LOGGER = logging.getLogger(__name__)
+
+from elkm1.const import ArmedStatus, AlarmState
+ELK_STATE_2_HASS_STATE = {
+    ArmedStatus.DISARMED.value:               STATE_ALARM_DISARMED,
+    ArmedStatus.ARMED_AWAY.value:             STATE_ALARM_ARMED_AWAY,
+    ArmedStatus.ARMED_STAY.value:             STATE_ALARM_ARMED_HOME,
+    ArmedStatus.ARMED_STAY_INSTANT.value:     STATE_ALARM_ARMED_HOME,
+    ArmedStatus.ARMED_TO_NIGHT.value:         STATE_ALARM_ARMED_HOME,
+    ArmedStatus.ARMED_TO_NIGHT_INSTANT.value: STATE_ALARM_ARMED_HOME,
+    ArmedStatus.ARMED_TO_VACATION.value:      STATE_ALARM_ARMED_AWAY,
+}
 
 
 @asyncio.coroutine
@@ -31,12 +42,6 @@ def async_setup_platform(hass, config: ConfigType,
     elk = hass.data['elkm1']['connection']
     elk_config = hass.data['elkm1']['config']
     discovered_devices = hass.data['elkm1']['discovered_devices']
-    #if elk is None:
-    #    _LOGGER.error('Elk is None')
-    #    return False
-    #if not elk.connected:
-    #    _LOGGER.error('A connection has not been made to the Elk panel.')
-    #    return False
 
     devices = []
     from elkm1.areas import Area as ElkArea
@@ -59,23 +64,19 @@ def async_setup_platform(hass, config: ConfigType,
     # Add discovered devices
     element_name = ''
     for element in discovery_info:
-        if isinstance(element[0], ElkArea):
-            element_name = 'alarm_control_panel.' + 'elkm1_' + element[0].default_name('_')
-        #elif isinstance(node, ElkKeypad):
-        #    if node.area > 0:
-        #        node_name = 'alarm_control_panel.' + 'elk_area_' + format(node.area, '01')
-        #        if node_name in discovered_devices:
-        #            discovered_devices[node_name].trigger_update(node)
-        #    continue
-        else:
+        if not isinstance(element[0], ElkArea):
             continue
+
+        element_name = 'alarm_control_panel.elkm1_' + element[0].default_name('_')
         if element_name not in discovered_devices:
             device = ElkAreaDevice(element[0], elk, hass, element[1])
-            _LOGGER.debug('Loading Elk %s: %s', element[0].__class__.__name__, element[0].name)
+            _LOGGER.debug('Loading Elk %s: %s',
+                          element[0].__class__.__name__, element[0].name)
             discovered_devices[element_name] = device
             devices.append(device)
         else:
-            _LOGGER.debug('Skipping already loaded Elk %s: %s', element[0].__class__.__name__, element[0].name)
+            _LOGGER.debug('Skipping already loaded Elk %s: %s',
+                          element[0].__class__.__name__, element[0].name)
 
     async_add_devices(devices, True)
     return True
@@ -142,7 +143,7 @@ class ElkAreaDevice(alarm.AlarmControlPanel):
     @property
     def code_format(self):
         """Return the alarm code format."""
-        return '[0-9]{4}([0-9]{2})?'
+        return '^[0-9]{4}([0-9]{2})?$'
 
     @property
     def state(self):
@@ -207,59 +208,32 @@ class ElkAreaDevice(alarm.AlarmControlPanel):
     @asyncio.coroutine
     def async_update(self):
         """Get the latest data and update the state."""
-        from elkm1.const import ArmedStatus, AlarmState
-        # Set status based on arm state
-        self._armed_status = self._element.armed_status
-        if self._armed_status is not None:
-            if self._armed_status == ArmedStatus.DISARMED.value:
-                self._state = STATE_ALARM_DISARMED
-            elif self._armed_status == ArmedStatus.ARMED_AWAY.value:
-                self._state = STATE_ALARM_ARMED_AWAY
-            elif self._armed_status == ArmedStatus.ARMED_STAY.value:
-                self._state = STATE_ALARM_ARMED_HOME
-            elif self._armed_status == ArmedStatus.ARMED_STAY_INSTANT.value:
-                self._state = STATE_ALARM_ARMED_HOME
-            elif self._armed_status == ArmedStatus.ARMED_TO_NIGHT.value:
-                self._state = STATE_ALARM_ARMED_HOME
-            elif self._armed_status == ArmedStatus.ARMED_TO_NIGHT_INSTANT.value:
-                self._state = STATE_ALARM_ARMED_HOME
-            elif self._armed_status == ArmedStatus.ARMED_TO_VACATION.value:
-                self._state = STATE_ALARM_ARMED_AWAY
-        else:
+
+        if self._element.alarm_state is None:
             self._state = STATE_UNKNOWN
-        # If alarm is triggered, show that instead
-        if self._element.alarm_state is not None:
-            if self._element.alarm_state != AlarmState.NO_ALARM_ACTIVE.value:
-                self._state = STATE_ALARM_TRIGGERED
-        # Unless there's an entry / exit timer running,
-        # show that we're arming or pending alarm accordingly
-        if self._element.timer1 > 0 or self._element.timer2 > 0:
-            if not self._element.is_exit:
-                self._state = STATE_ALARM_PENDING
-            # Don't displaying ARMING if exit timer running, because
-            # HASS won't let you disarm during ARMING
-            #else:
-            #    self._state = STATE_ALARM_ARMING
-        # If we should be hidden due to lack of member devices and default name, hide us
-        if (len(self._keypads) == 0) and (len(self._zones) == 0) and (self._element.is_default_name()):
-            self._hidden = True
+        elif self._element.timer1 > 0 or self._element.timer2 > 0:
+            self._state = STATE_ALARM_ARMING if self._element.is_exit \
+                else STATE_ALARM_DISARMING
+            # Temporary fix until old UI arm dialog fixed
+            self._state = STATE_ALARM_PENDING
+        elif self._element.alarm_state >= AlarmState.FIRE_ALARM.value:
+            self._state = STATE_ALARM_TRIGGERED
         else:
-            self._hidden = False
-        return
+            self._state = ELK_STATE_2_HASS_STATE[self._element.armed_status]
+
+        self._hidden = (len(self._keypads) == 0) and (len(self._zones) == 0) \
+            and (self._element.is_default_name())
 
     def alarm_disarm(self, code=None):
         """Send disarm command."""
         self._element.disarm(int(code))
-        return
 
     def alarm_arm_home(self, code=None):
         """Send arm home command."""
         from elkm1.const import ArmLevel
         self._element.arm(ArmLevel.ARMED_STAY.value, int(code))
-        return
 
     def alarm_arm_away(self, code=None):
         """Send arm away command."""
         from elkm1.const import ArmLevel
         self._element.arm(ArmLevel.ARMED_AWAY.value, int(code))
-        return
