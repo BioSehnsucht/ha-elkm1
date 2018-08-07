@@ -14,12 +14,26 @@ import homeassistant.components.alarm_control_panel as alarm
 from homeassistant.const import (
     STATE_ALARM_ARMED_AWAY, STATE_ALARM_ARMED_HOME, STATE_ALARM_DISARMED,
     STATE_ALARM_ARMING, STATE_ALARM_PENDING, STATE_ALARM_TRIGGERED,
-    STATE_ALARM_ARMED_NIGHT, STATE_UNKNOWN, STATE_ALARM_DISARMING
+    STATE_ALARM_ARMED_NIGHT, STATE_UNKNOWN, ATTR_ENTITY_ID, ATTR_CODE
     )
 
 from homeassistant.core import callback
 
 DEPENDENCIES = ['elkm1']
+
+STATE_ALARM_ARMED_VACATION = 'armed_vacation'
+STATE_ALARM_ARMED_HOME_INSTANT = 'armed_home_instant'
+STATE_ALARM_ARMED_NIGHT_INSTANT = 'armed_night_instant'
+
+SERVICE_ALARM_VACATION = 'alarm_arm_vacation'
+SERVICE_ALARM_HOME_INSTANT = 'alarm_arm_home_instant'
+SERVICE_ALARM_NIGHT_INSTANT = 'alarm_arm_night_instant'
+
+SERVICE_TO_METHOD = {
+    SERVICE_ALARM_VACATION: 'async_alarm_arm_vacation',
+    SERVICE_ALARM_HOME_INSTANT: 'async_alarm_arm_home_instant',
+    SERVICE_ALARM_NIGHT_INSTANT: 'async_alarm_arm_night_instant',
+}
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -28,10 +42,10 @@ ELK_STATE_2_HASS_STATE = {
     ArmedStatus.DISARMED.value:               STATE_ALARM_DISARMED,
     ArmedStatus.ARMED_AWAY.value:             STATE_ALARM_ARMED_AWAY,
     ArmedStatus.ARMED_STAY.value:             STATE_ALARM_ARMED_HOME,
-    ArmedStatus.ARMED_STAY_INSTANT.value:     STATE_ALARM_ARMED_HOME,
-    ArmedStatus.ARMED_TO_NIGHT.value:         STATE_ALARM_ARMED_HOME,
-    ArmedStatus.ARMED_TO_NIGHT_INSTANT.value: STATE_ALARM_ARMED_HOME,
-    ArmedStatus.ARMED_TO_VACATION.value:      STATE_ALARM_ARMED_AWAY,
+    ArmedStatus.ARMED_STAY_INSTANT.value:     STATE_ALARM_ARMED_HOME_INSTANT,
+    ArmedStatus.ARMED_TO_NIGHT.value:         STATE_ALARM_ARMED_NIGHT,
+    ArmedStatus.ARMED_TO_NIGHT_INSTANT.value: STATE_ALARM_ARMED_NIGHT_INSTANT,
+    ArmedStatus.ARMED_TO_VACATION.value:      STATE_ALARM_ARMED_VACATION,
 }
 
 
@@ -48,39 +62,48 @@ def async_setup_platform(hass, config: ConfigType,
     from elkm1.keypads import Keypad as ElkKeypad
     # If no discovery info was passed in, discover automatically
     if len(discovery_info) == 0:
-        # Gather areas
         if elk_config['area']['enabled']:
             for element in elk.areas:
-                if element:
-                    if elk_config['area']['included'][element._index] is True:
-                        discovery_info.append([element, elk_config['area']['shown'][element._index]])
-    ## If discovery info was passed in, check if we want to include it
-    #else:
-    #    for node in discovery_info:
-    #        if node.included is True and node.enabled is True:
-    #            continue
-    #        else:
-    #            discovery_info.remove(node)
-    # Add discovered devices
-    element_name = ''
-    for element in discovery_info:
-        if not isinstance(element[0], ElkArea):
-            continue
+                if elk_config['area']['included'][element._index] is True:
+                    discovery_info.append([element,
+                        elk_config['area']['shown'][element._index]])
+    else:
+        for element in discovery_info:
+            if not isinstance(element[0], ElkArea):
+                continue
 
-        element_name = 'alarm_control_panel.elkm1_' + element[0].default_name('_')
-        if element_name not in discovered_devices:
+            element_name = 'alarm_control_panel.elkm1_' + 
+                element[0].default_name('_')
+            if element_name in discovered_devices:
+                _LOGGER.debug('Skipping already loaded Elk %s: %s',
+                              element[0].__class__.__name__, element[0].name)
+                continue
+
             device = ElkAreaDevice(element[0], elk, hass, element[1])
             _LOGGER.debug('Loading Elk %s: %s',
                           element[0].__class__.__name__, element[0].name)
             discovered_devices[element_name] = device
             devices.append(device)
-        else:
-            _LOGGER.debug('Skipping already loaded Elk %s: %s',
-                          element[0].__class__.__name__, element[0].name)
 
     async_add_devices(devices, True)
-    return True
 
+    @asyncio.coroutine
+    def async_alarm_service_handler(service):
+        """Map services to methods on Alarm."""
+        entity_ids = service.data.get(ATTR_ENTITY_ID)
+        code = service.data.get(ATTR_CODE)
+        method = SERVICE_TO_METHOD[service.service]
+        target_devices = [device for device in devices
+                          if device.entity_id in entity_ids]
+
+        for device in target_devices:
+            getattr(device, method)(code)
+
+    for service in SERVICE_TO_METHOD:
+        hass.services.async_register(alarm.DOMAIN, service,
+            async_alarm_service_handler, schema=alarm.ALARM_SERVICE_SCHEMA)
+
+    return True
 
 class ElkAreaDevice(alarm.AlarmControlPanel):
     """Representation of an Area / Partition within the Elk M1 alarm panel."""
@@ -237,3 +260,18 @@ class ElkAreaDevice(alarm.AlarmControlPanel):
         """Send arm away command."""
         from elkm1.const import ArmLevel
         self._element.arm(ArmLevel.ARMED_AWAY.value, int(code))
+
+    def async_alarm_arm_vacation(self, code=None):
+        """Send arm vacation command."""
+        from elkm1.const import ArmLevel
+        self._element.arm(ArmLevel.ARMED_VACATION.value, int(code))
+
+    def async_alarm_arm_home_instant(self, code=None):
+        """Send arm home instant command."""
+        from elkm1.const import ArmLevel
+        self._element.arm(ArmLevel.ARMED_STAY_INSTANT.value, int(code))
+
+    def async_alarm_arm_night_instant(self, code=None):
+        """Send arm night instant command."""
+        from elkm1.const import ArmLevel
+        self._element.arm(ArmLevel.ARMED_NIGHT_INSTANT.value, int(code))
