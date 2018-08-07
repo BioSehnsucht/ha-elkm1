@@ -14,7 +14,7 @@ import homeassistant.components.alarm_control_panel as alarm
 from homeassistant.const import (
     STATE_ALARM_ARMED_AWAY, STATE_ALARM_ARMED_HOME, STATE_ALARM_DISARMED,
     STATE_ALARM_ARMING, STATE_ALARM_PENDING, STATE_ALARM_TRIGGERED,
-    STATE_ALARM_ARMED_NIGHT, STATE_UNKNOWN
+    STATE_ALARM_ARMED_NIGHT, STATE_UNKNOWN, STATE_ALARM_DISARMING
     )
 
 from homeassistant.core import callback
@@ -22,6 +22,17 @@ from homeassistant.core import callback
 DEPENDENCIES = ['elkm1']
 
 _LOGGER = logging.getLogger(__name__)
+
+from elkm1.const import ArmedStatus, AlarmState
+ELK_STATE_2_HASS_STATE = {
+    ArmedStatus.DISARMED.value:               STATE_ALARM_DISARMED,
+    ArmedStatus.ARMED_AWAY.value:             STATE_ALARM_ARMED_AWAY,
+    ArmedStatus.ARMED_STAY.value:             STATE_ALARM_ARMED_HOME,
+    ArmedStatus.ARMED_STAY_INSTANT.value:     STATE_ALARM_ARMED_HOME,
+    ArmedStatus.ARMED_TO_NIGHT.value:         STATE_ALARM_ARMED_NIGHT,
+    ArmedStatus.ARMED_TO_NIGHT_INSTANT.value: STATE_ALARM_ARMED_NIGHT,
+    ArmedStatus.ARMED_TO_VACATION.value:      STATE_ALARM_ARMED_AWAY,
+}
 
 
 @asyncio.coroutine
@@ -207,45 +218,27 @@ class ElkAreaDevice(alarm.AlarmControlPanel):
     @asyncio.coroutine
     def async_update(self):
         """Get the latest data and update the state."""
-        from elkm1.const import ArmedStatus, AlarmState
-        # Set status based on arm state
-        self._armed_status = self._element.armed_status
-        if self._armed_status is not None:
-            if self._armed_status == ArmedStatus.DISARMED.value:
-                self._state = STATE_ALARM_DISARMED
-            elif self._armed_status == ArmedStatus.ARMED_AWAY.value:
-                self._state = STATE_ALARM_ARMED_AWAY
-            elif self._armed_status == ArmedStatus.ARMED_STAY.value:
-                self._state = STATE_ALARM_ARMED_HOME
-            elif self._armed_status == ArmedStatus.ARMED_STAY_INSTANT.value:
-                self._state = STATE_ALARM_ARMED_HOME
-            elif self._armed_status == ArmedStatus.ARMED_TO_NIGHT.value:
-                self._state = STATE_ALARM_ARMED_HOME
-            elif self._armed_status == ArmedStatus.ARMED_TO_NIGHT_INSTANT.value:
-                self._state = STATE_ALARM_ARMED_HOME
-            elif self._armed_status == ArmedStatus.ARMED_TO_VACATION.value:
-                self._state = STATE_ALARM_ARMED_AWAY
-        else:
+
+        if self._element.alarm_state is None:
             self._state = STATE_UNKNOWN
-        # If alarm is triggered, show that instead
-        if self._element.alarm_state is not None:
-            if self._element.alarm_state != AlarmState.NO_ALARM_ACTIVE.value:
-                self._state = STATE_ALARM_TRIGGERED
-        # Unless there's an entry / exit timer running,
-        # show that we're arming or pending alarm accordingly
-        if self._element.timer1 > 0 or self._element.timer2 > 0:
-            if not self._element.is_exit:
-                self._state = STATE_ALARM_PENDING
-            # Don't displaying ARMING if exit timer running, because
-            # HASS won't let you disarm during ARMING
-            #else:
-            #    self._state = STATE_ALARM_ARMING
-        # If we should be hidden due to lack of member devices and default name, hide us
-        if (len(self._keypads) == 0) and (len(self._zones) == 0) and (self._element.is_default_name()):
-            self._hidden = True
+        elif self._area_is_in_alarm_state():
+            self._state = STATE_ALARM_TRIGGERED
+        elif self._entry_exit_timer_is_running():
+            self._state = STATE_ALARM_ARMING if self._element.is_exit \
+                else STATE_ALARM_DISARMING
+            # Temporary fix until old UI arm dialog fixed
+            self._state = STATE_ALARM_PENDING
         else:
-            self._hidden = False
-        return
+            self._state = ELK_STATE_2_HASS_STATE[self._element.armed_status]
+
+        self._hidden = (len(self._keypads) == 0) and (len(self._zones) == 0) \
+            and (self._element.is_default_name())
+
+    def _entry_exit_timer_is_running(self):
+        return self._element.timer1 > 0 or self._element.timer2 > 0
+
+    def _area_is_in_alarm_state(self):
+        return self._element.alarm_state >= AlarmState.FIRE_ALARM.value
 
     def alarm_disarm(self, code=None):
         """Send disarm command."""
