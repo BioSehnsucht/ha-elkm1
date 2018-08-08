@@ -13,13 +13,27 @@ from homeassistant.helpers.typing import ConfigType
 import homeassistant.components.alarm_control_panel as alarm
 from homeassistant.const import (
     STATE_ALARM_ARMED_AWAY, STATE_ALARM_ARMED_HOME, STATE_ALARM_DISARMED,
-    STATE_ALARM_ARMING, STATE_ALARM_PENDING, STATE_ALARM_TRIGGERED,
-    STATE_ALARM_ARMED_NIGHT, STATE_UNKNOWN, STATE_ALARM_DISARMING
+    STATE_ALARM_ARMING, STATE_ALARM_DISARMING, STATE_ALARM_PENDING, STATE_UNKNOWN,
+    STATE_ALARM_TRIGGERED, STATE_ALARM_ARMED_NIGHT, ATTR_ENTITY_ID, ATTR_CODE
     )
 
 from homeassistant.core import callback
 
 DEPENDENCIES = ['elkm1']
+
+STATE_ALARM_ARMED_VACATION = 'armed_vacation'
+STATE_ALARM_ARMED_HOME_INSTANT = 'armed_home_instant'
+STATE_ALARM_ARMED_NIGHT_INSTANT = 'armed_night_instant'
+
+SERVICE_ALARM_VACATION = 'alarm_arm_vacation'
+SERVICE_ALARM_HOME_INSTANT = 'alarm_arm_home_instant'
+SERVICE_ALARM_NIGHT_INSTANT = 'alarm_arm_night_instant'
+
+SERVICE_TO_METHOD = {
+    SERVICE_ALARM_VACATION: 'async_alarm_arm_vacation',
+    SERVICE_ALARM_HOME_INSTANT: 'async_alarm_arm_home_instant',
+    SERVICE_ALARM_NIGHT_INSTANT: 'async_alarm_arm_night_instant',
+}
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -28,10 +42,10 @@ ELK_STATE_2_HASS_STATE = {
     ArmedStatus.DISARMED.value:               STATE_ALARM_DISARMED,
     ArmedStatus.ARMED_AWAY.value:             STATE_ALARM_ARMED_AWAY,
     ArmedStatus.ARMED_STAY.value:             STATE_ALARM_ARMED_HOME,
-    ArmedStatus.ARMED_STAY_INSTANT.value:     STATE_ALARM_ARMED_HOME,
+    ArmedStatus.ARMED_STAY_INSTANT.value:     STATE_ALARM_ARMED_HOME_INSTANT,
     ArmedStatus.ARMED_TO_NIGHT.value:         STATE_ALARM_ARMED_NIGHT,
-    ArmedStatus.ARMED_TO_NIGHT_INSTANT.value: STATE_ALARM_ARMED_NIGHT,
-    ArmedStatus.ARMED_TO_VACATION.value:      STATE_ALARM_ARMED_AWAY,
+    ArmedStatus.ARMED_TO_NIGHT_INSTANT.value: STATE_ALARM_ARMED_NIGHT_INSTANT,
+    ArmedStatus.ARMED_TO_VACATION.value:      STATE_ALARM_ARMED_VACATION,
 }
 
 
@@ -69,6 +83,23 @@ def async_setup_platform(hass, config: ConfigType,
         devices.append(device)
 
     async_add_devices(devices, True)
+
+    @asyncio.coroutine
+    def async_alarm_service_handler(service):
+        """Map services to methods on Alarm."""
+        entity_ids = service.data.get(ATTR_ENTITY_ID)
+        code = service.data.get(ATTR_CODE)
+        method = SERVICE_TO_METHOD[service.service]
+        target_devices = [device for device in devices
+                          if device.entity_id in entity_ids]
+
+        for device in target_devices:
+            getattr(device, method)(code)
+
+    for service in SERVICE_TO_METHOD:
+        hass.services.async_register(alarm.DOMAIN, service,
+            async_alarm_service_handler, schema=alarm.ALARM_SERVICE_SCHEMA)
+
     return True
 
 class ElkAreaDevice(alarm.AlarmControlPanel):
@@ -222,16 +253,33 @@ class ElkAreaDevice(alarm.AlarmControlPanel):
     def alarm_disarm(self, code=None):
         """Send disarm command."""
         self._element.disarm(int(code))
-        return
 
     def alarm_arm_home(self, code=None):
         """Send arm home command."""
         from elkm1.const import ArmLevel
         self._element.arm(ArmLevel.ARMED_STAY.value, int(code))
-        return
 
     def alarm_arm_away(self, code=None):
         """Send arm away command."""
         from elkm1.const import ArmLevel
         self._element.arm(ArmLevel.ARMED_AWAY.value, int(code))
-        return
+
+    def alarm_arm_night(self, code=None):
+        """Send arm away command."""
+        from elkm1.const import ArmLevel
+        self._element.arm(ArmLevel.ARMED_NIGHT.value, int(code))
+
+    def async_alarm_arm_vacation(self, code=None):
+        """Send arm vacation command."""
+        from elkm1.const import ArmLevel
+        self._element.arm(ArmLevel.ARMED_VACATION.value, int(code))
+
+    def async_alarm_arm_home_instant(self, code=None):
+        """Send arm home instant command."""
+        from elkm1.const import ArmLevel
+        self._element.arm(ArmLevel.ARMED_STAY_INSTANT.value, int(code))
+
+    def async_alarm_arm_night_instant(self, code=None):
+        """Send arm night instant command."""
+        from elkm1.const import ArmLevel
+        self._element.arm(ArmLevel.ARMED_NIGHT_INSTANT.value, int(code))
