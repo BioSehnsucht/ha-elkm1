@@ -31,55 +31,34 @@ def async_setup_platform(hass, config: ConfigType,
     elk = hass.data['elkm1']['connection']
     elk_config = hass.data['elkm1']['config']
     discovered_devices = hass.data['elkm1']['discovered_devices']
-    #if elk is None:
-    #    _LOGGER.error('Elk is None')
-    #    return False
-    #if not elk.connected:
-    #    _LOGGER.error('A connection has not been made to the Elk panel.')
-    #    return False
 
-    devices = []
     from elkm1.areas import Area as ElkArea
     from elkm1.keypads import Keypad as ElkKeypad
-    # If no discovery info was passed in, discover automatically
+
+    devices = []
     if len(discovery_info) == 0:
-        # Gather areas
         if elk_config['area']['enabled']:
             for element in elk.areas:
-                if element:
-                    if elk_config['area']['included'][element._index] is True:
-                        discovery_info.append([element, elk_config['area']['shown'][element._index]])
-    ## If discovery info was passed in, check if we want to include it
-    #else:
-    #    for node in discovery_info:
-    #        if node.included is True and node.enabled is True:
-    #            continue
-    #        else:
-    #            discovery_info.remove(node)
-    # Add discovered devices
-    element_name = ''
+                if elk_config['area']['included'][element._index] is True:
+                    discovery_info.append([element,
+                        elk_config['area']['shown'][element._index]])
+
     for element in discovery_info:
-        if isinstance(element[0], ElkArea):
-            element_name = 'alarm_control_panel.' + 'elkm1_' + element[0].default_name('_')
-        #elif isinstance(node, ElkKeypad):
-        #    if node.area > 0:
-        #        node_name = 'alarm_control_panel.' + 'elk_area_' + format(node.area, '01')
-        #        if node_name in discovered_devices:
-        #            discovered_devices[node_name].trigger_update(node)
-        #    continue
-        else:
+        if not isinstance(element[0], ElkArea):
             continue
-        if element_name not in discovered_devices:
-            device = ElkAreaDevice(element[0], elk, hass, element[1])
-            _LOGGER.debug('Loading Elk %s: %s', element[0].__class__.__name__, element[0].name)
-            discovered_devices[element_name] = device
-            devices.append(device)
-        else:
-            _LOGGER.debug('Skipping already loaded Elk %s: %s', element[0].__class__.__name__, element[0].name)
+
+        element_name = 'alarm_control_panel.elkm1_' + element[0].default_name('_')
+        if element_name in discovered_devices:
+            continue
+
+        device = ElkAreaDevice(element[0], elk, hass, element[1])
+        _LOGGER.debug('Loading Elk area %s: %s',
+                      element[0].__class__.__name__, element[0].name)
+        discovered_devices[element_name] = device
+        devices.append(device)
 
     async_add_devices(devices, True)
     return True
-
 
 class ElkAreaDevice(alarm.AlarmControlPanel):
     """Representation of an Area / Partition within the Elk M1 alarm panel."""
