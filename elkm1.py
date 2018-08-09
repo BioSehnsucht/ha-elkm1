@@ -298,7 +298,12 @@ def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 
     #bound_event_callback = partial(_callback_from_pyelk, hass, config)
 
-    elk = elkm1.Elk({'url': elk_config[CONF_HOST]}, loop=hass.loop)
+    elk_obj_config = {'url': elk_config[CONF_HOST]}
+    if CONF_USERNAME in elk_config and CONF_PASSWORD in elk_config:
+        elk_obj_config['userid'] = elk_config[CONF_USERNAME]
+        elk_obj_config['password'] = elk_config[CONF_PASSWORD]
+
+    elk = elkm1.Elk(elk_obj_config, loop=hass.loop)
 
     hass.data['elkm1'] = {
         'connection' : elk,
