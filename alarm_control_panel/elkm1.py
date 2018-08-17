@@ -48,6 +48,16 @@ ELK_STATE_2_HASS_STATE = {
     ArmedStatus.ARMED_TO_VACATION.value:      STATE_ALARM_ARMED_VACATION,
 }
 
+ELK_STATE_2_HASS_STATE_COMPAT = {
+    ArmedStatus.DISARMED.value:               STATE_ALARM_DISARMED,
+    ArmedStatus.ARMED_AWAY.value:             STATE_ALARM_ARMED_AWAY,
+    ArmedStatus.ARMED_STAY.value:             STATE_ALARM_ARMED_HOME,
+    ArmedStatus.ARMED_STAY_INSTANT.value:     STATE_ALARM_ARMED_HOME,
+    ArmedStatus.ARMED_TO_NIGHT.value:         STATE_ALARM_ARMED_NIGHT,
+    ArmedStatus.ARMED_TO_NIGHT_INSTANT.value: STATE_ALARM_ARMED_NIGHT,
+    ArmedStatus.ARMED_TO_VACATION.value:      STATE_ALARM_ARMED_AWAY,
+}
+
 
 @asyncio.coroutine
 def async_setup_platform(hass, config: ConfigType,
@@ -56,6 +66,7 @@ def async_setup_platform(hass, config: ConfigType,
     elk = hass.data['elkm1']['connection']
     elk_config = hass.data['elkm1']['config']
     discovered_devices = hass.data['elkm1']['discovered_devices']
+    lovelace = elk_config['lovelace']
 
     from elkm1.areas import Area as ElkArea
     from elkm1.keypads import Keypad as ElkKeypad
@@ -76,7 +87,7 @@ def async_setup_platform(hass, config: ConfigType,
         if element_name in discovered_devices:
             continue
 
-        device = ElkAreaDevice(element[0], elk, hass, element[1])
+        device = ElkAreaDevice(element[0], elk, hass, element[1], lovelace)
         _LOGGER.debug('Loading Elk area %s: %s',
                       element[0].__class__.__name__, element[0].name)
         discovered_devices[element_name] = device
@@ -105,7 +116,7 @@ def async_setup_platform(hass, config: ConfigType,
 class ElkAreaDevice(alarm.AlarmControlPanel):
     """Representation of an Area / Partition within the Elk M1 alarm panel."""
 
-    def __init__(self, area, elk, hass, show_override):
+    def __init__(self, area, elk, hass, show_override, lovelace):
         """Initialize Area as Alarm Control Panel."""
         self._element = area
         self._area = self._element.index + 1
@@ -131,6 +142,7 @@ class ElkAreaDevice(alarm.AlarmControlPanel):
         self._sync_done = False
         self._armed_status = None
         self._show_override = show_override
+        self._lovelace = lovelace
 
     def _sensor_event(self, event):
         event_data = event.data
@@ -239,7 +251,11 @@ class ElkAreaDevice(alarm.AlarmControlPanel):
             # Temporary fix until old UI arm dialog fixed
             self._state = STATE_ALARM_PENDING
         else:
-            self._state = ELK_STATE_2_HASS_STATE[self._element.armed_status]
+            if self._lovelace is False:
+                # If lovelace mode is False, instead use states compatible with stock UI
+                self._state = ELK_STATE_2_HASS_STATE_COMPAT[self._element.armed_status]
+            else:
+                self._state = ELK_STATE_2_HASS_STATE[self._element.armed_status]
 
         self._hidden = (len(self._keypads) == 0) and (len(self._zones) == 0) \
             and (self._element.is_default_name())

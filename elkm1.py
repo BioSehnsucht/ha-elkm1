@@ -54,6 +54,7 @@ CONF_ZONE = 'zone'
 CONF_ENABLED = 'enabled'    # True to enable subdomain
 CONF_HIDE = 'hide'
 CONF_SHOW = 'show'
+CONF_LOVELACE = 'lovelace'
 #CONF_AUTOHIDE = 'autohide'  # True to enable autohide
 #                             (include / exclude override autohiding)
 #CONF_FASTLOAD = 'fastload'  # True to enable fastload
@@ -141,6 +142,7 @@ CONFIG_SCHEMA = vol.Schema({
         vol.Required(CONF_HOST): cv.string,
         vol.Optional(CONF_USERNAME): cv.string,
         vol.Optional(CONF_PASSWORD): cv.string,
+        vol.Optional(CONF_LOVELACE, default=False): cv.boolean,
         #vol.Optional(CONF_FASTLOAD, default=DEFAULT_FASTLOAD): cv.boolean,
         #vol.Optional(CONF_FASTLOAD_FILE, default=DEFAULT_FASTLOAD_FILE): cv.string,
         vol.Optional(CONF_AREA): CONFIG_SCHEMA_SUBDOMAIN,
@@ -185,6 +187,7 @@ def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
             _LOGGER.error('Must specify username and password for secure connection')
             return False
     elk_config[CONF_HOST] = elk_config_raw[CONF_HOST]
+    elk_config[CONF_LOVELACE] = elk_config_raw[CONF_LOVELACE]
 
     def housecode_to_int(hc):
         """Convert house / device code to integer device number."""
