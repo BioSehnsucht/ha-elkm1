@@ -1,5 +1,5 @@
 """Support for Elk X10 devices as lights."""
-
+import asyncio
 import logging
 from typing import Callable  # noqa
 import math
@@ -10,87 +10,84 @@ from homeassistant.helpers.typing import ConfigType
 
 from homeassistant.components.light import (Light, ATTR_BRIGHTNESS,
                                             SUPPORT_BRIGHTNESS)
+from homeassistant.core import callback
+
 DEPENDENCIES = ['elkm1']
 
 _LOGGER = logging.getLogger(__name__)
 
 
-def setup_platform(hass, config: ConfigType,
-                   add_devices: Callable[[list], None], discovery_info=[]):
+@asyncio.coroutine
+def async_setup_platform(hass, config: ConfigType,
+                   async_add_devices: Callable[[list], None], discovery_info=[]):
     """Setup the Elk switch platform."""
-    elk = hass.data['PyElk']['connection']
-    discovered_devices = hass.data['PyElk']['discovered_devices']
-    if elk is None:
-        _LOGGER.error('Elk is None')
-        return False
-    if not elk.connected:
-        _LOGGER.error('A connection has not been made to the Elk panel.')
-        return False
+    elk = hass.data['elkm1']['connection']
+    elk_config = hass.data['elkm1']['config']
+    discovered_devices = hass.data['elkm1']['discovered_devices']
+    #if elk is None:
+    #    _LOGGER.error('Elk is None')
+    #    return False
+    #if not elk.connected:
+    #    _LOGGER.error('A connection has not been made to the Elk panel.')
+    #    return False
 
     devices = []
-    from PyElk.X10 import X10 as ElkX10
+    from elkm1.lights import Light as ElkLight
     # If no discovery info was passed in, discover automatically
     if len(discovery_info) == 0:
-        # Gather areas
-        for node in elk.X10:
-            if node:
-                if node.included is True and node.enabled is True:
-                    discovery_info.append(node)
+        # Gather plc devices
+        if elk_config['plc']['enabled']:
+            for element in elk.lights:
+                if element:
+                    if elk_config['plc']['included'][element._index] is True:
+                        discovery_info.append([element, elk_config['plc']['shown'][element._index]])
     # If discovery info was passed in, check if we want to include it
-    else:
-        for node in discovery_info:
-            if node.included is True and node.enabled is True:
-                continue
-            else:
-                discovery_info.remove(node)
+    #else:
+    #    for node in discovery_info:
+    #        if node.included is True and node.enabled is True:
+    #            continue
+    #        else:
+    #            discovery_info.remove(node)
     # Add discovered devices
-    for node in discovery_info:
-        if isinstance(node, ElkX10):
-            node_name = 'light.' + ElkX10Device.entity_name(node)
+    element_name = ''
+    for element in discovery_info:
+        if isinstance(element[0], ElkLight):
+            element_name = 'light.' + 'elkm1_' + element[0].default_name('_')
         else:
             continue
-        if node_name not in discovered_devices:
-            device = ElkX10Device(node)
-            _LOGGER.debug('Loading Elk %s: %s', node.classname, node.description_pretty())
-            discovered_devices[node_name] = device
+        if element_name not in discovered_devices:
+            device = ElkLightDevice(element[0], elk, hass, element[1])
+            _LOGGER.debug('Loading Elk %s: %s', element[0].__class__.__name__, element[0].name)
+            discovered_devices[element_name] = device
             devices.append(device)
         else:
-            _LOGGER.debug('Skipping already loaded Elk %s: %s', node.classname, node.description_pretty())
+            _LOGGER.debug('Skipping already loaded Elk %s: %s', element[0].__class__.__name__, element[0].name)
 
-    add_devices(devices, True)
+    async_add_devices(devices, True)
     return True
 
 
-class ElkX10Device(Light):
+class ElkLightDevice(Light):
     """Elk X10 device as Switch."""
-    @classmethod
-    def entity_name(cls, device):
-        from PyElk import Elk as ElkSystem
-        from PyElk.X10 import X10 as ElkX10
-        name = 'elk_x10_' + device.house_pretty + device.device_pretty
-        return name
 
-    def __init__(self, device):
+    def __init__(self, device, elk, hass, show_override):
         """Initialize X10 switch."""
-        self._device = device
-        self._name = ElkX10Device.entity_name(device)
-        # FIXME: Why does this work for sensor but not anywhere else?
-        #self.entity_id = ENTITY_ID_FORMAT.format(self._name)
+        self._element = device
+        self._name = 'elkm1_' + self._element.default_name('_').lower()
         self.entity_id = 'light.' + self._name
         self._state = None
-        self._hidden = not self._device.enabled
-        self._device.callback_add(self.trigger_update)
-        self.update()
+        self._hidden = self._element.is_default_name() #not self._device.enabled
+        self._element.add_callback(self.trigger_update)
+        self._show_override = show_override
 
     @property
     def name(self):
         """Return the name of the switch."""
-        return self._device.description_pretty()
+        return self._element.name
 
     @property
     def state(self):
         """Return the state of the switch."""
-        _LOGGER.debug('X10 updating : ' + str(self._device.number))
         return self._state
 
     @property
@@ -101,43 +98,56 @@ class ElkX10Device(Light):
     @property
     def brightness(self) -> float:
         """Get the brightness of the X10 light."""
-        return self._device.level / 100.0
+        if self._element.status > 2:
+            return self._element.status / 100.0
+        if self._element.status == 1:
+            return 1.0
+        return self._element.status
 
     @property
     def supported_features(self):
         """Flag supported features."""
         return SUPPORT_BRIGHTNESS
 
-    def trigger_update(self, node):
+    @callback
+    def trigger_update(self, attribute, value):
         """Target of PyElk callback."""
-        _LOGGER.debug('Triggering auto update of X10 '
-                      + self._device.house_pretty
-                      + ' ' + self._device.device_pretty)
-        self.schedule_update_ha_state(True)
+        if self.hass:
+            self.async_schedule_update_ha_state(True)
 
-    def update(self):
+    @asyncio.coroutine
+    def async_update(self):
         """Get the latest data and update the state."""
-        if self.is_on:
+        if self._element.status > 2:
+            self._brightness = self._element.status
             self._state = STATE_ON
-        else:
+        if self._element.status == 1:
+            self._brightness = 100
+            self._state = STATE_ON
+        if self._element.status == 0:
+            self._brightness = 0
             self._state = STATE_OFF
-        self._hidden = not self._device.enabled
+        self._hidden = self._element.is_default_name()
 
     @property
     def device_state_attributes(self):
         """Return the state attributes of the switch."""
+        if self._show_override is None:
+            hidden = self._hidden
+        else:
+            hidden = not self._show_override
         return {
-            'House Code': self._device.house_pretty,
-            'Device': self._device.device_pretty,
-            'unique_id': self._device.house_pretty + self._device.device_pretty,
-            'hidden': self._hidden,
+            #'House Code': self._element.house_pretty,
+            #'Device': self._element.device_pretty,
+            #'unique_id': self._element.house_pretty + self._element.device_pretty,
+            'hidden': hidden,
+            ATTR_BRIGHTNESS : round(self._brightness * 2.55),
             }
 
     @property
     def is_on(self) -> bool:
         """True if output in the on state."""
-        if (self._device.status == self._device.STATUS_ON) or (
-                self._device.status == self._device.STATUS_DIMMED):
+        if self._state == STATE_ON:
             return True
         return False
 
@@ -146,14 +156,20 @@ class ElkX10Device(Light):
         """Return whether this device should be polled."""
         return False
 
-    def turn_on(self, **kwargs):
+    @asyncio.coroutine
+    def async_turn_on(self, **kwargs):
         """Turn on output."""
         if ATTR_BRIGHTNESS in kwargs:
-            level = math.ceil(kwargs[ATTR_BRIGHTNESS] * 100)
-            self._device.set_level(level)
+            level = math.ceil(kwargs[ATTR_BRIGHTNESS] / 2.55 )
+            if level > 99:
+                level = 99
+            if level < 2:
+                level = 2
+            self._element.turn_on(level,0)
         else:
-            self._device.turn_on()
+            self._element.turn_on(100,0)
 
-    def turn_off(self):
+    @asyncio.coroutine
+    def async_turn_off(self, **kwargs):
         """Turn off output."""
-        self._device.turn_off()
+        self._element.turn_off()
