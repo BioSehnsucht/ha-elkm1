@@ -1,7 +1,7 @@
 # ha-elkm1
 Home Assistant component, platforms for Elk M1 Gold and similar alarm / integration panels
 
-Uses https://github.com/BioSehnsucht/pyelk / https://pypi.python.org/pypi/PyElk
+Uses https://github.com/gwww/elkm1 / https://pypi.org/project/elkm1/
 
 For documentation (WIP - may be ahead of functionality released on Github), see:
 * https://github.com/BioSehnsucht/home-assistant.github.io/blob/elkm1-gwww/source/_components/elkm1.markdown
