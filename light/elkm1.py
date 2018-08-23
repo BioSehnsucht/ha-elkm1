@@ -61,7 +61,9 @@ class ElkLight(ElkDeviceBase, Light):
     @property
     def device_state_attributes(self):
         """Attributes of the light."""
-        return {ATTR_BRIGHTNESS: round(self._brightness * 2.55)}
+        attrs = self.initial_attrs()
+        attrs[ATTR_BRIGHTNESS] = round(self._brightness * 2.55)
+        return attrs
 
     # pylint: disable=unused-argument
     @callback

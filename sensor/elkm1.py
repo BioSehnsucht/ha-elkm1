@@ -83,20 +83,17 @@ class ElkPanel(ElkDeviceBase):
     @property
     def device_state_attributes(self):
         """Attributes of the sensor."""
-        return {
-            'elkm1_version': self._element.elkm1_version,
-            'xep_version': self._element.xep_version,
-            'remote_programming_status': ElkRPStatus(
-                self._element.remote_programming_status).name.lower(),
-            'real_time_clock': self._element.real_time_clock,
-        }
+        attrs = self.initial_attrs()
+        attrs['remote_programming_status'] = ElkRPStatus(
+            self._element.remote_programming_status).name.lower()
+        return attrs
 
     # pylint: disable=unused-argument
     @callback
     def _element_callback(self, element, attribute, value):
         if self._elk.is_connected():
             self._state = 'Paused' if self._element.remote_programming_status \
-                else 'Normal'
+                else 'Connected'
         else:
             self._state = 'Disconnected'
         self.async_schedule_update_ha_state(True)
@@ -121,7 +118,7 @@ class ElkKeypad(ElkDeviceBase):
     @property
     def device_state_attributes(self):
         """Attributes of the sensor."""
-        attrs = {}
+        attrs = self.initial_attrs()
         attrs['last_user'] = self._element.last_user + 1
         attrs['last_user_name'] = \
             self._elk.users[self._element.last_user].name \
@@ -154,7 +151,7 @@ class ElkZone(ElkDeviceBase):
     @property
     def device_state_attributes(self):
         """Attributes of the sensor."""
-        attrs = {}
+        attrs = self.initial_attrs()
         attrs['physical_status'] = ZonePhysicalStatus(
             self._element.physical_status).name.lower()
         attrs['logical_status'] = ZoneLogicalStatus(
@@ -258,7 +255,7 @@ class ElkSetting(ElkDeviceBase):
     @property
     def device_state_attributes(self):
         """Attributes of the sensor."""
-        attrs = {}
+        attrs = self.initial_attrs()
         attrs['value_format'] = SettingFormat(
             self._element.value_format).name.lower()
         attrs['value'] = self._element.value

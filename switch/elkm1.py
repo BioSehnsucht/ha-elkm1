@@ -78,7 +78,9 @@ class ElkTask(ElkDeviceBase, ToggleEntity):
     @property
     def device_state_attributes(self):
         """Attributes of the task."""
-        return {'last_change': self._element.last_change}
+        attrs = self.initial_attrs()
+        attrs['last_change'] = self._element.last_change
+        return attrs
 
     @property
     def is_on(self) -> bool:

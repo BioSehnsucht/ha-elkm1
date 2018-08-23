@@ -20,7 +20,7 @@ from homeassistant.helpers.typing import ConfigType # noqa
 
 DOMAIN = "elkm1"
 
-REQUIREMENTS = ['elkm1-lib==0.6.0']
+REQUIREMENTS = ['elkm1-lib==0.6.1']
 
 CONF_AREA = 'area'
 CONF_COUNTER = 'counter'
@@ -217,7 +217,14 @@ class ElkDeviceBase(Entity):
     @property
     def device_state_attributes(self):
         """Attributes of the element."""
-        return self._element.as_dict()
+        return {**self._element.as_dict(), **self.initial_attrs()}
+
+    def initial_attrs(self):
+        """The underlying element's attributes as a dict."""
+        attrs = {}
+        attrs['index'] = self._element.index + 1
+        attrs['state'] = self._state
+        return attrs
 
     @callback
     def _element_callback(self, element, attribute, value):
