@@ -9,7 +9,7 @@ import asyncio
 import logging
 import math
 
-from homeassistant.const import (STATE_OFF, STATE_ON)
+from homeassistant.const import (STATE_UNKNOWN, STATE_OFF, STATE_ON)
 from homeassistant.components.light import (Light, ATTR_BRIGHTNESS,
                                             SUPPORT_BRIGHTNESS)
 from homeassistant.core import callback
@@ -37,7 +37,7 @@ class ElkLight(ElkDeviceBase, Light):
         """Initialize light."""
         ElkDeviceBase.__init__(self, 'light', device, hass, config)
         self._brightness = self._element.status
-        self._state = STATE_OFF
+        self._state = STATE_UNKNOWN
 
     @property
     def icon(self):
@@ -47,11 +47,11 @@ class ElkLight(ElkDeviceBase, Light):
     @property
     def brightness(self) -> float:
         """Get the brightness of the X10 light."""
-        if self._element.status > 2:
+        if self._element.status > 1:
             return self._element.status / 100.0
         if self._element.status == 1:
             return 1.0
-        return self._element.status
+        return 0.0
 
     @property
     def supported_features(self):
@@ -87,15 +87,19 @@ class ElkLight(ElkDeviceBase, Light):
     @asyncio.coroutine
     def async_turn_on(self, **kwargs):
         """Let there be light!"""
-        if ATTR_BRIGHTNESS in kwargs:
-            level = math.ceil(kwargs[ATTR_BRIGHTNESS] / 2.55)
-            if level > 98:
-                level = 100
-            elif level < 2:
-                level = 0
-            self._element.turn_on(level, 0)
+        if ATTR_BRIGHTNESS not in kwargs:
+            self._element.turn_on()
+            return
+
+        level = math.ceil(kwargs[ATTR_BRIGHTNESS] / 2.55)
+        if level == 0:
+            self._element.turn_off()
         else:
-            self._element.turn_on(100, 0)
+            if level == 1:
+                level = 2
+            elif level > 98:
+                level = 100
+            self._element.turn_on(level)
 
     @asyncio.coroutine
     def async_turn_off(self, **kwargs):
