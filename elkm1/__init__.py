@@ -18,12 +18,9 @@ from homeassistant.helpers import discovery, config_validation as cv
 from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.typing import ConfigType # noqa
 
-from elkm1_lib.const import Max
-from elkm1_lib.message import housecode_to_index
-import elkm1_lib as elkm1
-
 DOMAIN = "elkm1"
-REQUIREMENTS = ['elkm1_lib==0.6.0']
+
+REQUIREMENTS = ['elkm1-lib==0.6.0']
 
 CONF_AREA = 'area'
 CONF_COUNTER = 'counter'
@@ -74,24 +71,29 @@ CONFIG_SCHEMA = vol.Schema({
 SUPPORTED_DOMAINS = ['sensor', 'switch', 'alarm_control_panel',
                      'climate', 'light']
 
-CONFIGS = {
-    CONF_AREA: Max.AREAS.value,
-    CONF_COUNTER: Max.COUNTERS.value,
-    CONF_KEYPAD: Max.KEYPADS.value,
-    CONF_OUTPUT: Max.OUTPUTS.value,
-    CONF_PANEL: 1,
-    CONF_PLC: Max.LIGHTS.value,
-    CONF_SETTING: Max.SETTINGS.value,
-    CONF_TASK: Max.TASKS.value,
-    CONF_THERMOSTAT: Max.THERMOSTATS.value,
-    CONF_USER: Max.USERS.value,
-    CONF_ZONE: Max.ZONES.value,
-}
-
 
 @asyncio.coroutine
 def async_setup(hass: HomeAssistant, hass_config: ConfigType) -> bool:
     """Set up the Elk M1 platform."""
+
+    from elkm1_lib.const import Max
+    from elkm1_lib.message import housecode_to_index
+    import elkm1_lib as elkm1
+
+    CONFIGS = {
+        CONF_AREA: Max.AREAS.value,
+        CONF_COUNTER: Max.COUNTERS.value,
+        CONF_KEYPAD: Max.KEYPADS.value,
+        CONF_OUTPUT: Max.OUTPUTS.value,
+        CONF_PANEL: 1,
+        CONF_PLC: Max.LIGHTS.value,
+        CONF_SETTING: Max.SETTINGS.value,
+        CONF_TASK: Max.TASKS.value,
+        CONF_THERMOSTAT: Max.THERMOSTATS.value,
+        CONF_USER: Max.USERS.value,
+        CONF_ZONE: Max.ZONES.value,
+    }
+
     def parse_value(val, max_):
         """Parse a value as an int or housecode."""
         i = int(val) if val.isdigit() else (housecode_to_index(val) + 1)
