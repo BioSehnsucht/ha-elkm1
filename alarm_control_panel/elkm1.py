@@ -49,6 +49,16 @@ ELK_STATE_TO_HASS_STATE = {
     ArmedStatus.ARMED_TO_VACATION.value:      STATE_ALARM_ARMED_VACATION,
 }
 
+ELK_STATE_TO_HASS_STATE_OLD_UI = {
+    ArmedStatus.DISARMED.value:               STATE_ALARM_DISARMED,
+    ArmedStatus.ARMED_AWAY.value:             STATE_ALARM_ARMED_AWAY,
+    ArmedStatus.ARMED_STAY.value:             STATE_ALARM_ARMED_HOME,
+    ArmedStatus.ARMED_STAY_INSTANT.value:     STATE_ALARM_ARMED_HOME,
+    ArmedStatus.ARMED_TO_NIGHT.value:         STATE_ALARM_ARMED_NIGHT,
+    ArmedStatus.ARMED_TO_NIGHT_INSTANT.value: STATE_ALARM_ARMED_NIGHT,
+    ArmedStatus.ARMED_TO_VACATION.value:      STATE_ALARM_ARMED_AWAY,
+}
+
 
 # pylint: disable=unused-argument
 @asyncio.coroutine
@@ -147,7 +157,11 @@ class ElkArea(ElkDeviceBase, alarm.AlarmControlPanel):
             else:
                 self._state = STATE_ALARM_PENDING
         else:
-            self._state = ELK_STATE_TO_HASS_STATE[self._element.armed_status]
+            if self._lovelace:
+                self._state = ELK_STATE_TO_HASS_STATE[self._element.armed_status]
+            else:
+                self._state = ELK_STATE_TO_HASS_STATE_OLD_UI[
+                    self._element.armed_status]
         self._hidden = self._element.is_default_name()
         self.async_schedule_update_ha_state(True)
 
