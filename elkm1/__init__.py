@@ -162,19 +162,17 @@ def async_setup(hass: HomeAssistant, hass_config: ConfigType) -> bool:
     elk = elkm1.Elk({'url': host, 'userid': username, 'password': password})
     elk.connect()
 
-    hass.data['elkm1'] = {'connection': elk, 'discovered_devices': {},
-                          'config': config}
-
+    hass.data[DOMAIN] = {'connection': elk, 'config': config}
     for component in SUPPORTED_DOMAINS:
         hass.async_add_job(
-            discovery.async_load_platform(hass, component, DOMAIN, [], config))
+            discovery.async_load_platform(hass, component, DOMAIN, None, None))
 
     return True
 
 
 def create_elk_devices(hass, elk_elements, element_type, class_, devices):
     """Helper to create the ElkM1 devices of a particular class."""
-    config = hass.data['elkm1']['config']
+    config = hass.data[DOMAIN]['config']
     for element in elk_elements:
         if config[element_type]['included'][element.index]:
             devices.append(class_(element, hass, config[element_type]))
@@ -184,7 +182,7 @@ def create_elk_devices(hass, elk_elements, element_type, class_, devices):
 class ElkDeviceBase(Entity):
     """Sensor devices on the Elk."""
     def __init__(self, platform, element, hass, config):
-        self._elk = hass.data['elkm1']['connection']
+        self._elk = hass.data[DOMAIN]['connection']
         self._element = element
         self._hass = hass
         self._show_override = config['shown'][element.index]
