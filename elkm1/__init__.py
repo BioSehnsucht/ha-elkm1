@@ -192,7 +192,6 @@ class ElkDeviceBase(Entity):
         self._state = None
         self.entity_id = platform + '.elkm1_' + \
             self._element.default_name('_').lower()
-        self._element.add_callback(self._element_callback)
 
     @property
     def name(self):
@@ -235,6 +234,11 @@ class ElkDeviceBase(Entity):
         else:
             self._state = STATE_UNKNOWN
             self._hidden = True
+
+    @asyncio.coroutine
+    def async_added_to_hass(self):
+        """Register callbacks."""
+        self._element.add_callback(self._element_callback)
 
     @asyncio.coroutine
     def async_update(self):

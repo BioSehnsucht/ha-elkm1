@@ -116,6 +116,7 @@ class ElkArea(ElkDeviceBase, alarm.AlarmControlPanel):
     @property
     def device_state_attributes(self):
         """Attributes of the area."""
+        el = self._element
         attrs = {
             'is_exit': el.is_exit,
             'timer1': el.timer1,
@@ -123,7 +124,6 @@ class ElkArea(ElkDeviceBase, alarm.AlarmControlPanel):
             'state': self._state,
             'changed_by_time': self._changed_by_time,
         }
-        el = self._element
         attrs['armed_status'] = STATE_UNKNOWN if el.armed_status is None \
             else ArmedStatus(el.armed_status).name.lower()
         attrs['arm_up_state'] = STATE_UNKNOWN if el.arm_up_state is None \
