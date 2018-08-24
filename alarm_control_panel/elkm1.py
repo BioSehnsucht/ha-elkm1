@@ -43,16 +43,6 @@ ELK_STATE_TO_HASS_STATE = {
     ArmedStatus.DISARMED.value:               STATE_ALARM_DISARMED,
     ArmedStatus.ARMED_AWAY.value:             STATE_ALARM_ARMED_AWAY,
     ArmedStatus.ARMED_STAY.value:             STATE_ALARM_ARMED_HOME,
-    ArmedStatus.ARMED_STAY_INSTANT.value:     STATE_ALARM_ARMED_HOME_INSTANT,
-    ArmedStatus.ARMED_TO_NIGHT.value:         STATE_ALARM_ARMED_NIGHT,
-    ArmedStatus.ARMED_TO_NIGHT_INSTANT.value: STATE_ALARM_ARMED_NIGHT_INSTANT,
-    ArmedStatus.ARMED_TO_VACATION.value:      STATE_ALARM_ARMED_VACATION,
-}
-
-ELK_STATE_TO_HASS_STATE_OLD_UI = {
-    ArmedStatus.DISARMED.value:               STATE_ALARM_DISARMED,
-    ArmedStatus.ARMED_AWAY.value:             STATE_ALARM_ARMED_AWAY,
-    ArmedStatus.ARMED_STAY.value:             STATE_ALARM_ARMED_HOME,
     ArmedStatus.ARMED_STAY_INSTANT.value:     STATE_ALARM_ARMED_HOME,
     ArmedStatus.ARMED_TO_NIGHT.value:         STATE_ALARM_ARMED_NIGHT,
     ArmedStatus.ARMED_TO_NIGHT_INSTANT.value: STATE_ALARM_ARMED_NIGHT,
@@ -96,7 +86,6 @@ class ElkArea(ElkDeviceBase, alarm.AlarmControlPanel):
         """Initialize Area as Alarm Control Panel."""
         ElkDeviceBase.__init__(self, 'alarm_control_panel', device,
                                hass, config)
-        self._lovelace = hass.data['elkm1']['config']['lovelace']
         self._changed_by = -1
         self._changed_by_time = 0
 
@@ -127,12 +116,12 @@ class ElkArea(ElkDeviceBase, alarm.AlarmControlPanel):
     def device_state_attributes(self):
         """Attributes of the area."""
         attrs = self.initial_attrs()
+        el = self._element
         attrs['is_exit']: el.is_exit
         attrs['timer1']: el.timer1
         attrs['timer2']: el.timer2
         attrs['state']: self._state
         attrs['changed_by_time']: self._changed_by_time
-        el = self._element
         attrs['armed_status'] = STATE_UNKNOWN if el.armed_status is None \
             else ArmedStatus(el.armed_status).name.lower()
         attrs['arm_up_state'] = STATE_UNKNOWN if el.arm_up_state is None \
@@ -150,17 +139,11 @@ class ElkArea(ElkDeviceBase, alarm.AlarmControlPanel):
         elif self._area_is_in_alarm_state():
             self._state = STATE_ALARM_TRIGGERED
         elif self._entry_exit_timer_is_running():
-            if self._lovelace:
-                self._state = STATE_ALARM_ARMING if self._element.is_exit \
-                    else STATE_ALARM_DISARMING
-            else:
-                self._state = STATE_ALARM_PENDING
+            self._state = STATE_ALARM_ARMING \
+                if self._element.is_exit else STATE_ALARM_PENDING
         else:
-            if self._lovelace:
-                self._state = ELK_STATE_TO_HASS_STATE[self._element.armed_status]
-            else:
-                self._state = ELK_STATE_TO_HASS_STATE_OLD_UI[
-                    self._element.armed_status]
+            self._state = ELK_STATE_TO_HASS_STATE[self._element.armed_status]
+
         self._hidden = self._element.is_default_name()
         self.async_schedule_update_ha_state(True)
 
