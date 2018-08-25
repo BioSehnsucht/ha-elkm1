@@ -28,14 +28,10 @@ STATE_ALARM_ARMED_VACATION = 'armed_vacation'
 STATE_ALARM_ARMED_HOME_INSTANT = 'armed_home_instant'
 STATE_ALARM_ARMED_NIGHT_INSTANT = 'armed_night_instant'
 
-SERVICE_ALARM_VACATION = 'alarm_arm_vacation'
-SERVICE_ALARM_HOME_INSTANT = 'alarm_arm_home_instant'
-SERVICE_ALARM_NIGHT_INSTANT = 'alarm_arm_night_instant'
-
-SERVICE_TO_METHOD = {
-    SERVICE_ALARM_VACATION: 'async_alarm_arm_vacation',
-    SERVICE_ALARM_HOME_INSTANT: 'async_alarm_arm_home_instant',
-    SERVICE_ALARM_NIGHT_INSTANT: 'async_alarm_arm_night_instant',
+SERVICE_TO_ELK = {
+    'alarm_arm_vacation': ArmLevel.ARMED_VACATION.value,
+    'alarm_arm_home_instant': ArmLevel.ARMED_STAY_INSTANT.value,
+    'alarm_arm_night_instant': ArmLevel.ARMED_NIGHT_INSTANT.value,
 }
 
 _LOGGER = logging.getLogger(__name__)
@@ -65,18 +61,16 @@ def async_setup_platform(hass, config, async_add_devices, discovery_info):
         """Map services to methods on Alarm."""
         entity_ids = service.data.get(ATTR_ENTITY_ID)
         code = service.data.get(ATTR_CODE)
-        method = SERVICE_TO_METHOD[service.service]
         target_devices = [device for device in devices
                           if device.entity_id in entity_ids]
 
         for device in target_devices:
-            getattr(device, method)(code)
+            device.async_alarm_service(service.service, code)
 
-    for service in SERVICE_TO_METHOD:
+    for service in SERVICE_TO_ELK:
         hass.services.async_register(alarm.DOMAIN, service,
                                      async_alarm_service_handler,
                                      schema=alarm.ALARM_SERVICE_SCHEMA)
-
     return True
 
 
@@ -170,14 +164,6 @@ class ElkArea(ElkDeviceBase, alarm.AlarmControlPanel):
         """Send arm away command."""
         self._element.arm(ArmLevel.ARMED_NIGHT.value, int(code))
 
-    def async_alarm_arm_vacation(self, code=None):
-        """Send arm vacation command."""
-        self._element.arm(ArmLevel.ARMED_VACATION.value, int(code))
-
-    def async_alarm_arm_home_instant(self, code=None):
-        """Send arm home instant command."""
-        self._element.arm(ArmLevel.ARMED_STAY_INSTANT.value, int(code))
-
-    def async_alarm_arm_night_instant(self, code=None):
+    def async_alarm_service(self, service, code):
         """Send arm night instant command."""
-        self._element.arm(ArmLevel.ARMED_NIGHT_INSTANT.value, int(code))
+        self._element.arm(SERVICE_TO_ELK[service], int(code))
