@@ -9,9 +9,9 @@ import asyncio
 import logging
 import math
 
-from homeassistant.const import (STATE_UNKNOWN, STATE_OFF, STATE_ON)
-from homeassistant.components.light import (Light, ATTR_BRIGHTNESS,
-                                            SUPPORT_BRIGHTNESS)
+from homeassistant.components.light import (ATTR_BRIGHTNESS,
+                                            SUPPORT_BRIGHTNESS, Light)
+from homeassistant.const import STATE_OFF, STATE_ON, STATE_UNKNOWN
 from homeassistant.core import callback
 
 from custom_components.elkm1 import ElkDeviceBase, create_elk_devices

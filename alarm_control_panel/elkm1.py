@@ -10,16 +10,17 @@ import logging
 import time
 
 import homeassistant.components.alarm_control_panel as alarm
-from homeassistant.const import (
-    STATE_ALARM_ARMED_AWAY, STATE_ALARM_ARMED_HOME, STATE_ALARM_DISARMED,
-    STATE_ALARM_ARMING, STATE_ALARM_DISARMING, STATE_ALARM_PENDING,
-    STATE_UNKNOWN, STATE_ALARM_TRIGGERED, STATE_ALARM_ARMED_NIGHT,
-    ATTR_ENTITY_ID, ATTR_CODE)
+from homeassistant.const import (ATTR_CODE, ATTR_ENTITY_ID,
+                                 STATE_ALARM_ARMED_AWAY,
+                                 STATE_ALARM_ARMED_HOME,
+                                 STATE_ALARM_ARMED_NIGHT, STATE_ALARM_ARMING,
+                                 STATE_ALARM_DISARMED, STATE_ALARM_DISARMING,
+                                 STATE_ALARM_PENDING, STATE_ALARM_TRIGGERED,
+                                 STATE_UNKNOWN)
 from homeassistant.core import callback
 
 from custom_components.elkm1 import ElkDeviceBase, create_elk_devices
-
-from elkm1_lib.const import ArmLevel, ArmedStatus, ArmUpState, AlarmState
+from elkm1_lib.const import AlarmState, ArmedStatus, ArmLevel, ArmUpState
 
 DEPENDENCIES = ['elkm1']
 

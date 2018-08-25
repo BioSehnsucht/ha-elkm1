@@ -8,18 +8,22 @@ https://home-assistant.io/components/climate.elkm1/
 import asyncio
 import logging
 
-from homeassistant.components.climate import (
-    STATE_IDLE, STATE_HEAT, STATE_COOL, STATE_AUTO, STATE_FAN_ONLY,
-    ATTR_TARGET_TEMP_LOW, ATTR_TARGET_TEMP_HIGH, PRECISION_WHOLE,
-    ClimateDevice, SUPPORT_TARGET_TEMPERATURE_HIGH,
-    SUPPORT_TARGET_TEMPERATURE_LOW, SUPPORT_FAN_MODE,
-    SUPPORT_OPERATION_MODE, SUPPORT_AUX_HEAT)
-from homeassistant.const import (TEMP_FAHRENHEIT, STATE_UNKNOWN, STATE_ON)
+from homeassistant.components.climate import (ATTR_TARGET_TEMP_HIGH,
+                                              ATTR_TARGET_TEMP_LOW,
+                                              PRECISION_WHOLE, STATE_AUTO,
+                                              STATE_COOL, STATE_FAN_ONLY,
+                                              STATE_HEAT, STATE_IDLE,
+                                              SUPPORT_AUX_HEAT,
+                                              SUPPORT_FAN_MODE,
+                                              SUPPORT_OPERATION_MODE,
+                                              SUPPORT_TARGET_TEMPERATURE_HIGH,
+                                              SUPPORT_TARGET_TEMPERATURE_LOW,
+                                              ClimateDevice)
+from homeassistant.const import STATE_ON, STATE_UNKNOWN, TEMP_FAHRENHEIT
 from homeassistant.core import callback
 
 from custom_components.elkm1 import ElkDeviceBase, create_elk_devices
-
-from elkm1_lib.const import (ThermostatSetting, ThermostatMode, ThermostatFan)
+from elkm1_lib.const import ThermostatFan, ThermostatMode, ThermostatSetting
 
 DEPENDENCIES = ['elkm1']
 

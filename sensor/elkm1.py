@@ -16,10 +16,10 @@ import time
 
 from homeassistant.const import TEMP_FAHRENHEIT
 from homeassistant.core import callback
-from custom_components.elkm1 import ElkDeviceBase, create_elk_devices
 
-from elkm1_lib.const import (ZoneType, ZoneLogicalStatus, ZonePhysicalStatus,
-                             SettingFormat, ElkRPStatus)
+from custom_components.elkm1 import ElkDeviceBase, create_elk_devices
+from elkm1_lib.const import (ElkRPStatus, SettingFormat, ZoneLogicalStatus,
+                             ZonePhysicalStatus, ZoneType)
 from elkm1_lib.util import pretty_const
 
 DEPENDENCIES = ['elkm1']

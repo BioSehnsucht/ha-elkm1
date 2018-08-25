@@ -10,13 +10,13 @@ import asyncio
 import logging
 
 import voluptuous as vol
-
+from homeassistant.const import (CONF_EXCLUDE, CONF_HOST, CONF_INCLUDE,
+                                 CONF_PASSWORD, CONF_USERNAME, STATE_UNKNOWN)
 from homeassistant.core import HomeAssistant, callback  # noqa
-from homeassistant.const import (CONF_HOST, CONF_USERNAME, CONF_PASSWORD,
-                                 CONF_EXCLUDE, CONF_INCLUDE, STATE_UNKNOWN)
-from homeassistant.helpers import discovery, config_validation as cv
+from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers import discovery
 from homeassistant.helpers.entity import Entity
-from homeassistant.helpers.typing import ConfigType # noqa
+from homeassistant.helpers.typing import ConfigType  # noqa
 
 DOMAIN = "elkm1"
 

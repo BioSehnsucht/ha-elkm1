@@ -8,9 +8,9 @@ https://home-assistant.io/components/switch.elkm1/
 import asyncio
 import logging
 
-from homeassistant.const import (STATE_OFF, STATE_ON)
-from homeassistant.helpers.entity import ToggleEntity
+from homeassistant.const import STATE_OFF, STATE_ON
 from homeassistant.core import callback
+from homeassistant.helpers.entity import ToggleEntity
 
 from custom_components.elkm1 import ElkDeviceBase, create_elk_devices
 
