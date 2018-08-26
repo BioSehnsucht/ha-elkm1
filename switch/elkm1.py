@@ -94,5 +94,5 @@ class ElkTask(ElkDeviceBase, ToggleEntity):
         pass
 
     # pylint: disable=unused-argument
-    def _element_callback(self, element, attribute, value):
+    def _element_changed(self, element, attribute, value):
         pass
