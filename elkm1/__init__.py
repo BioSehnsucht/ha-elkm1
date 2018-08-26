@@ -20,7 +20,7 @@ from homeassistant.helpers.typing import ConfigType  # noqa
 
 DOMAIN = "elkm1"
 
-REQUIREMENTS = ['elkm1-lib==0.6.1']
+REQUIREMENTS = ['elkm1-lib==0.7.0']
 
 CONF_AREA = 'area'
 CONF_COUNTER = 'counter'
@@ -227,9 +227,11 @@ class ElkDeviceBase(Entity):
         return attrs
 
     @callback
-    def _element_callback(self, element, attribute, value):
+    def _element_changeset_callback(self, element, changeset):
         """Callback handler from the Elk - required to be supplied."""
-        raise NotImplementedError()
+        for change in changeset:
+            self._element_changed(element, change[0], change[1])
+        self.async_schedule_update_ha_state(True)
 
     def _temperature_to_state(self, temperature, undefined_temperature):
         """Helper to convert a temperature to a state."""
@@ -243,7 +245,7 @@ class ElkDeviceBase(Entity):
     @asyncio.coroutine
     def async_added_to_hass(self):
         """Register callbacks."""
-        self._element.add_callback(self._element_callback)
+        self._element.add_callback(self._element_changeset_callback)
 
     @asyncio.coroutine
     def async_update(self):

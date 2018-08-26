@@ -9,7 +9,6 @@ import asyncio
 import logging
 
 from homeassistant.const import STATE_OFF, STATE_ON
-from homeassistant.core import callback
 from homeassistant.helpers.entity import ToggleEntity
 
 from custom_components.elkm1 import ElkDeviceBase, create_elk_devices
@@ -56,11 +55,8 @@ class ElkOutput(ElkDeviceBase, ToggleEntity):
         self._element.turn_off()
 
     # pylint: disable=unused-argument
-    @callback
-    def _element_callback(self, element, attribute, value):
-        """Callback handler from the Elk."""
+    def _element_changed(self, element, attribute, value):
         self._state = STATE_ON if self._element.output_on else STATE_OFF
-        self.async_schedule_update_ha_state(True)
 
 
 class ElkTask(ElkDeviceBase, ToggleEntity):
@@ -85,22 +81,18 @@ class ElkTask(ElkDeviceBase, ToggleEntity):
     @property
     def is_on(self) -> bool:
         """True if task in the on state."""
-        return self._state == STATE_ON
+        return False
 
     def async_turn_on(self, **kwargs):
         """Turn on task."""
         self._element.activate()
-        self.hass.loop.call_later(2, self.async_turn_off)
 
     def async_turn_off(self, **kwargs):
         """Turn off task."""
         # Tasks aren't actually ever turned off
         # Tasks are momentary, so "always" off
-        self._state = STATE_OFF
-        self.async_schedule_update_ha_state(True)
+        pass
 
     # pylint: disable=unused-argument
-    @callback
     def _element_callback(self, element, attribute, value):
-        """Callback handler from the Elk."""
-        self.async_schedule_update_ha_state(True)
+        pass

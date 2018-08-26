@@ -17,7 +17,6 @@ from homeassistant.const import (ATTR_CODE, ATTR_ENTITY_ID,
                                  STATE_ALARM_DISARMED, STATE_ALARM_DISARMING,
                                  STATE_ALARM_PENDING, STATE_ALARM_TRIGGERED,
                                  STATE_UNKNOWN)
-from homeassistant.core import callback
 
 from custom_components.elkm1 import ElkDeviceBase, create_elk_devices
 from elkm1_lib.const import AlarmState, ArmedStatus, ArmLevel, ArmUpState
@@ -87,13 +86,14 @@ class ElkArea(ElkDeviceBase, alarm.AlarmControlPanel):
         for keypad in self._elk.keypads:
             keypad.add_callback(self._watch_keypad)
 
-    def _watch_keypad(self, element, attribute, value):
-        if element.index != self._element.index:
+    def _watch_keypad(self, keypad, changeset):
+        if keypad.area != self._element.index:
             return
-        if attribute == 'last_user':
-            self._changed_by = value
-            self._changed_by_time = time.time()
-            self.async_schedule_update_ha_state(True)
+        for change in changeset:
+            if change[0] == 'last_user':
+                self._changed_by = change[1]
+                self._changed_by_time = time.time()
+                self.async_schedule_update_ha_state(True)
 
     @property
     def code_format(self):
@@ -126,9 +126,7 @@ class ElkArea(ElkDeviceBase, alarm.AlarmControlPanel):
         return attrs
 
     # pylint: disable=unused-argument
-    @callback
-    def _element_callback(self, element, attribute, value):
-        """Callback handler from the Elk."""
+    def _element_changed(self, element, attribute, value):
         if self._element.alarm_state is None:
             self._state = STATE_UNKNOWN
         elif self._area_is_in_alarm_state():
@@ -140,7 +138,6 @@ class ElkArea(ElkDeviceBase, alarm.AlarmControlPanel):
             self._state = ELK_STATE_TO_HASS_STATE[self._element.armed_status]
 
         self._hidden = self._element.is_default_name()
-        self.async_schedule_update_ha_state(True)
 
     def _entry_exit_timer_is_running(self):
         return self._element.timer1 > 0 or self._element.timer2 > 0

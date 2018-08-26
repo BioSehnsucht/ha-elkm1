@@ -12,7 +12,6 @@ import math
 from homeassistant.components.light import (ATTR_BRIGHTNESS,
                                             SUPPORT_BRIGHTNESS, Light)
 from homeassistant.const import STATE_OFF, STATE_ON, STATE_UNKNOWN
-from homeassistant.core import callback
 
 from custom_components.elkm1 import ElkDeviceBase, create_elk_devices
 
@@ -66,8 +65,7 @@ class ElkLight(ElkDeviceBase, Light):
         return attrs
 
     # pylint: disable=unused-argument
-    @callback
-    def _element_callback(self, element, attribute, value):
+    def _element_changed(self, element, attribute, value):
         """Callback handler from the Elk."""
         if self._element.status == 0:
             self._brightness = 0
@@ -79,7 +77,6 @@ class ElkLight(ElkDeviceBase, Light):
             else:
                 self._brightness = self._element.status
         self._hidden = self._element.is_default_name()
-        self.async_schedule_update_ha_state(True)
 
     @property
     def is_on(self) -> bool:

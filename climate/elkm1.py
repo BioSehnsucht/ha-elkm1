@@ -20,7 +20,6 @@ from homeassistant.components.climate import (ATTR_TARGET_TEMP_HIGH,
                                               SUPPORT_TARGET_TEMPERATURE_LOW,
                                               ClimateDevice)
 from homeassistant.const import STATE_ON, STATE_UNKNOWN, TEMP_FAHRENHEIT
-from homeassistant.core import callback
 
 from custom_components.elkm1 import ElkDeviceBase, create_elk_devices
 from elkm1_lib.const import ThermostatFan, ThermostatMode, ThermostatSetting
@@ -52,10 +51,8 @@ class ElkThermostat(ElkDeviceBase, ClimateDevice):
         ElkDeviceBase.__init__(self, 'climate', device, hass, config)
 
     # pylint: disable=unused-argument
-    @callback
-    def _element_callback(self, element, attribute, value):
-        """Target of PyElk callback."""
-        self.async_schedule_update_ha_state(True)
+    def _element_changed(self, element, attribute, value):
+        pass
 
     @property
     def supported_features(self):

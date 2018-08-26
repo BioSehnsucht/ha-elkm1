@@ -15,7 +15,6 @@ import logging
 import time
 
 from homeassistant.const import TEMP_FAHRENHEIT
-from homeassistant.core import callback
 
 from custom_components.elkm1 import ElkDeviceBase, create_elk_devices
 from elkm1_lib.const import (ElkRPStatus, SettingFormat, ZoneLogicalStatus,
@@ -89,14 +88,12 @@ class ElkPanel(ElkDeviceBase):
         return attrs
 
     # pylint: disable=unused-argument
-    @callback
-    def _element_callback(self, element, attribute, value):
+    def _element_changed(self, element, attribute, value):
         if self._elk.is_connected():
             self._state = 'Paused' if self._element.remote_programming_status \
                 else 'Connected'
         else:
             self._state = 'Disconnected'
-        self.async_schedule_update_ha_state(True)
 
 
 class ElkKeypad(ElkDeviceBase):
@@ -129,13 +126,10 @@ class ElkKeypad(ElkDeviceBase):
         return attrs
 
     # pylint: disable=unused-argument
-    @callback
-    def _element_callback(self, element, attribute, value):
+    def _element_changed(self, element, attribute, value):
         self._temperature_to_state(self._element.temperature, -40)
         if attribute == 'last_user':
             self._last_user_time = time.time()
-
-        self.async_schedule_update_ha_state(True)
 
 
 class ElkZone(ElkDeviceBase):
@@ -181,8 +175,7 @@ class ElkZone(ElkDeviceBase):
         return None
 
     # pylint: disable=unused-argument
-    @callback
-    def _element_callback(self, element, attribute, value):
+    def _element_changed(self, element, attribute, value):
         self._hidden = False
         if self._element.definition == ZoneType.TEMPERATURE.value:
             self._temperature_to_state(self._element.temperature, -60)
@@ -192,8 +185,6 @@ class ElkZone(ElkDeviceBase):
             self._state = pretty_const(ZoneLogicalStatus(
                 self._element.logical_status).name)
             self._hidden = self._element.definition == ZoneType.DISABLED.value
-
-        self.async_schedule_update_ha_state(True)
 
 
 class ElkThermostat(ElkDeviceBase):
@@ -212,10 +203,8 @@ class ElkThermostat(ElkDeviceBase):
         return 'mdi:thermometer-lines'
 
     # pylint: disable=unused-argument
-    @callback
-    def _element_callback(self, element, attribute, value):
+    def _element_changed(self, element, attribute, value):
         self._temperature_to_state(self._element.current_temp, 0)
-        self.async_schedule_update_ha_state(True)
 
 
 # pylint: disable=too-few-public-methods
@@ -230,10 +219,8 @@ class ElkCounter(ElkDeviceBase):
         return 'mdi:numeric'
 
     # pylint: disable=unused-argument
-    @callback
-    def _element_callback(self, element, attribute, value):
+    def _element_changed(self, element, attribute, value):
         self._state = self._element.value
-        self.async_schedule_update_ha_state(True)
 
 
 class ElkSetting(ElkDeviceBase):
@@ -247,10 +234,8 @@ class ElkSetting(ElkDeviceBase):
         return 'mdi:numeric'
 
     # pylint: disable=unused-argument
-    @callback
-    def _element_callback(self, element, attribute, value):
+    def _element_changed(self, element, attribute, value):
         self._state = self._element.value
-        self.async_schedule_update_ha_state(True)
 
     @property
     def device_state_attributes(self):
