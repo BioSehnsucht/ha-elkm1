@@ -136,6 +136,7 @@ class ElkArea(ElkDeviceBase, alarm.AlarmControlPanel):
                 if self._element.is_exit else STATE_ALARM_PENDING
         else:
             self._state = ELK_STATE_TO_HASS_STATE[self._element.armed_status]
+        _LOGGER.warn("state %s",self._state)
 
         self._hidden = self._element.is_default_name()
 
