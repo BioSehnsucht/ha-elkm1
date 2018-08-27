@@ -154,6 +154,7 @@ class ElkZone(ElkDeviceBase):
             self._element.definition).name.lower()
         attrs['area'] = self._element.area + 1
         attrs['bypassed'] = self._element.bypassed
+        attrs['triggered_alarm'] = self._element.triggered_alarm
         if self._element.definition == ZoneType.TEMPERATURE.value:
             attrs['temperature'] = self._element.temperature
         elif self._element.definition == ZoneType.ANALOG_ZONE.value:

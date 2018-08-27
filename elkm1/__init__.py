@@ -20,7 +20,7 @@ from homeassistant.helpers.typing import ConfigType  # noqa
 
 DOMAIN = "elkm1"
 
-REQUIREMENTS = ['elkm1-lib==0.7.2']
+REQUIREMENTS = ['elkm1-lib==0.7.3']
 
 CONF_AREA = 'area'
 CONF_COUNTER = 'counter'
@@ -187,7 +187,7 @@ class ElkDeviceBase(Entity):
         self._hass = hass
         self._show_override = config['shown'][element.index]
         self._hidden = False
-        self._state = None
+        self._state = STATE_UNKNOWN
         self.entity_id = platform + '.elkm1_' + \
             self._element.default_name('_').lower()
 

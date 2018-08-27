@@ -6,7 +6,6 @@ https://home-assistant.io/components/switch.elkm1/
 """
 
 import asyncio
-import logging
 
 from homeassistant.const import STATE_OFF, STATE_ON
 from homeassistant.helpers.entity import ToggleEntity
@@ -14,8 +13,6 @@ from homeassistant.helpers.entity import ToggleEntity
 from custom_components.elkm1 import ElkDeviceBase, create_elk_devices
 
 DEPENDENCIES = ['elkm1']
-
-_LOGGER = logging.getLogger(__name__)
 
 
 # pylint: disable=unused-argument
@@ -88,9 +85,10 @@ class ElkTask(ElkDeviceBase, ToggleEntity):
         self._element.activate()
 
     def async_turn_off(self, **kwargs):
-        """Turn off task."""
-        # Tasks aren't actually ever turned off
-        # Tasks are momentary, so "always" off
+        """
+        Turn off task. Tasks aren't actually never turned "on",
+        they are just triggered, so their state is always off.
+        """
         pass
 
     # pylint: disable=unused-argument
