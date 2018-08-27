@@ -6,8 +6,6 @@ https://home-assistant.io/components/light.elkm1/
 """
 
 import asyncio
-import logging
-import math
 
 from homeassistant.components.light import (ATTR_BRIGHTNESS,
                                             SUPPORT_BRIGHTNESS, Light)
@@ -16,8 +14,6 @@ from homeassistant.const import STATE_OFF, STATE_ON, STATE_UNKNOWN
 from custom_components.elkm1 import ElkDeviceBase, create_elk_devices
 
 DEPENDENCIES = ['elkm1']
-
-_LOGGER = logging.getLogger(__name__)
 
 
 # pylint: disable=unused-argument
@@ -39,68 +35,43 @@ class ElkLight(ElkDeviceBase, Light):
         self._state = STATE_UNKNOWN
 
     @property
-    def icon(self):
-        """Icon to use in the frontend."""
-        return 'mdi:lightbulb'
-
-    @property
-    def brightness(self) -> float:
-        """Get the brightness of the X10 light."""
-        if self._element.status > 1:
-            return self._element.status / 100.0
-        if self._element.status == 1:
-            return 1.0
-        return 0.0
+    def brightness(self):
+        """Get the brightness of the PLC light."""
+        return self._brightness
 
     @property
     def supported_features(self):
         """Flag supported features."""
         return SUPPORT_BRIGHTNESS
 
-    @property
-    def device_state_attributes(self):
-        """Attributes of the light."""
-        attrs = self.initial_attrs()
-        attrs[ATTR_BRIGHTNESS] = round(self._brightness * 2.55)
-        return attrs
-
     # pylint: disable=unused-argument
     def _element_changed(self, element, attribute, value):
         """Callback handler from the Elk."""
-        if self._element.status == 0:
-            self._brightness = 0
-            self._state = STATE_OFF
-        else:
-            self._state = STATE_ON
-            if self._element.status == 1:
-                self._brightness = 100
-            else:
-                self._brightness = self._element.status
-        self._hidden = self._element.is_default_name()
+        status = self._element.status if self._element.status != 1 else 100
+        self._state = STATE_OFF if status == 0 else STATE_ON
+        self._brightness = round(status * 2.55)
 
     @property
     def is_on(self) -> bool:
-        """Is there light!"""
-        return self._state == STATE_ON
+        """Is there light?"""
+        return self._brightness != 0
 
     @asyncio.coroutine
     def async_turn_on(self, **kwargs):
         """Let there be light!"""
-        if ATTR_BRIGHTNESS not in kwargs:
-            self._element.turn_on()
-            return
-
-        level = math.ceil(kwargs[ATTR_BRIGHTNESS] / 2.55)
+        brightness = kwargs.get(ATTR_BRIGHTNESS, 255)
+        level = round(brightness / 2.55)
         if level == 0:
             self._element.turn_off()
+        elif level >= 98:
+            self._element.turn_on()
+        elif level == 1:
+            self._element.turn_on(2)
         else:
-            if level == 1:
-                level = 2
-            elif level > 98:
-                level = 100
             self._element.turn_on(level)
 
     @asyncio.coroutine
     def async_turn_off(self, **kwargs):
         """In the darkness..."""
+        self._brightness = 0
         self._element.turn_off()
