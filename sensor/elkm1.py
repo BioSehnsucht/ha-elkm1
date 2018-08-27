@@ -88,7 +88,7 @@ class ElkPanel(ElkDeviceBase):
         return attrs
 
     # pylint: disable=unused-argument
-    def _element_changed(self, element, attribute, value):
+    def _element_changed(self, element, changeset):
         if self._elk.is_connected():
             self._state = 'Paused' if self._element.remote_programming_status \
                 else 'Connected'
@@ -126,9 +126,9 @@ class ElkKeypad(ElkDeviceBase):
         return attrs
 
     # pylint: disable=unused-argument
-    def _element_changed(self, element, attribute, value):
+    def _element_changed(self, element, changeset):
         self._temperature_to_state(self._element.temperature, -40)
-        if attribute == 'last_user':
+        if changeset.get('last_user'):
             self._last_user_time = time.time()
 
 
@@ -175,7 +175,7 @@ class ElkZone(ElkDeviceBase):
         return None
 
     # pylint: disable=unused-argument
-    def _element_changed(self, element, attribute, value):
+    def _element_changed(self, element, changeset):
         self._hidden = False
         if self._element.definition == ZoneType.TEMPERATURE.value:
             self._temperature_to_state(self._element.temperature, -60)
@@ -203,7 +203,7 @@ class ElkThermostat(ElkDeviceBase):
         return 'mdi:thermometer-lines'
 
     # pylint: disable=unused-argument
-    def _element_changed(self, element, attribute, value):
+    def _element_changed(self, element, changeset):
         self._temperature_to_state(self._element.current_temp, 0)
 
 
@@ -219,7 +219,7 @@ class ElkCounter(ElkDeviceBase):
         return 'mdi:numeric'
 
     # pylint: disable=unused-argument
-    def _element_changed(self, element, attribute, value):
+    def _element_changed(self, element, changeset):
         self._state = self._element.value
 
 
@@ -234,7 +234,7 @@ class ElkSetting(ElkDeviceBase):
         return 'mdi:numeric'
 
     # pylint: disable=unused-argument
-    def _element_changed(self, element, attribute, value):
+    def _element_changed(self, element, changeset):
         self._state = self._element.value
 
     @property

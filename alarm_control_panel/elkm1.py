@@ -6,7 +6,6 @@ https://home-assistant.io/components/alarm_control_panel.elkm1/
 """
 
 import asyncio
-import logging
 import time
 
 import homeassistant.components.alarm_control_panel as alarm
@@ -32,8 +31,6 @@ SERVICE_TO_ELK = {
     'alarm_arm_home_instant': ArmLevel.ARMED_STAY_INSTANT.value,
     'alarm_arm_night_instant': ArmLevel.ARMED_NIGHT_INSTANT.value,
 }
-
-_LOGGER = logging.getLogger(__name__)
 
 ELK_STATE_TO_HASS_STATE = {
     ArmedStatus.DISARMED.value:               STATE_ALARM_DISARMED,
@@ -126,7 +123,7 @@ class ElkArea(ElkDeviceBase, alarm.AlarmControlPanel):
         return attrs
 
     # pylint: disable=unused-argument
-    def _element_changed(self, element, attribute, value):
+    def _element_changed(self, element, changeset):
         if self._element.alarm_state is None:
             self._state = STATE_UNKNOWN
         elif self._area_is_in_alarm_state():
@@ -136,7 +133,6 @@ class ElkArea(ElkDeviceBase, alarm.AlarmControlPanel):
                 if self._element.is_exit else STATE_ALARM_PENDING
         else:
             self._state = ELK_STATE_TO_HASS_STATE[self._element.armed_status]
-        _LOGGER.warn("state %s",self._state)
 
         self._hidden = self._element.is_default_name()
 

@@ -45,7 +45,7 @@ class ElkLight(ElkDeviceBase, Light):
         return SUPPORT_BRIGHTNESS
 
     # pylint: disable=unused-argument
-    def _element_changed(self, element, attribute, value):
+    def _element_changed(self, element, changeset):
         """Callback handler from the Elk."""
         status = self._element.status if self._element.status != 1 else 100
         self._state = STATE_OFF if status == 0 else STATE_ON

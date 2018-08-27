@@ -51,7 +51,7 @@ class ElkThermostat(ElkDeviceBase, ClimateDevice):
         ElkDeviceBase.__init__(self, 'climate', device, hass, config)
 
     # pylint: disable=unused-argument
-    def _element_changed(self, element, attribute, value):
+    def _element_changed(self, element, changeset):
         pass
 
     @property

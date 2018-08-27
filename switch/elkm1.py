@@ -55,7 +55,7 @@ class ElkOutput(ElkDeviceBase, ToggleEntity):
         self._element.turn_off()
 
     # pylint: disable=unused-argument
-    def _element_changed(self, element, attribute, value):
+    def _element_changed(self, element, changeset):
         self._state = STATE_ON if self._element.output_on else STATE_OFF
 
 
@@ -94,5 +94,5 @@ class ElkTask(ElkDeviceBase, ToggleEntity):
         pass
 
     # pylint: disable=unused-argument
-    def _element_changed(self, element, attribute, value):
+    def _element_changed(self, element, changeset):
         pass
