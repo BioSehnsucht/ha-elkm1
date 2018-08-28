@@ -85,6 +85,7 @@ class ElkPanel(ElkDeviceBase):
         attrs = self.initial_attrs()
         attrs['remote_programming_status'] = ElkRPStatus(
             self._element.remote_programming_status).name.lower()
+        attrs['system_trouble_status'] = self._element.system_trouble_status
         return attrs
 
     # pylint: disable=unused-argument
