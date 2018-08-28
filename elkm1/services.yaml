@@ -1,0 +1,31 @@
+# Describes the format for available ElkM1 alarm control panel services
+
+alarm_vacation:
+  description: Arm the ElkM1 in vacation mode.
+  fields:
+    entity_id:
+      description: Name of alarm control panel to arm.
+      example: 'alarm_control_panel.main'
+    code:
+      description: An code to arm the alarm control panel.
+      example: 1234
+
+alarm_home_instant:
+  description: Arm the ElkM1 in home instant mode.
+  fields:
+    entity_id:
+      description: Name of alarm control panel to arm.
+      example: 'alarm_control_panel.main'
+    code:
+      description: An code to arm the alarm control panel.
+      example: 1234
+
+alarm_night_instant:
+  description: Arm the ElkM1 in night instant mode.
+  fields:
+    entity_id:
+      description: Name of alarm control panel to arm.
+      example: 'alarm_control_panel.main'
+    code:
+      description: An code to arm the alarm control panel.
+      example: 1234

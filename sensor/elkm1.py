@@ -1,414 +1,249 @@
-"""Support for Elk zones as sensors."""
+"""
+Support for control of ElkM1 sensors. On the ElkM1 there are 5 types
+of sensors:
+- Zones that are on/off/voltage/temperature.
+- Keypads that have temperature (not all models, but no way to know)
+- Counters that are integers that can be read/set
+- Settings that are used to trigger automations
+
+For more details about this platform, please refer to the documentation at
+https://home-assistant.io/components/sensor.elkm1/
+"""
+
 import asyncio
 import logging
 import time
-from typing import Callable  # noqa
 
-from homeassistant.const import (TEMP_FAHRENHEIT, STATE_UNKNOWN)
+from homeassistant.const import TEMP_FAHRENHEIT
 
-from homeassistant.helpers.entity import Entity
-from homeassistant.components.sensor import ENTITY_ID_FORMAT
-from homeassistant.helpers.typing import ConfigType
-
-from homeassistant.core import callback
+from custom_components.elkm1 import ElkDeviceBase, create_elk_devices
+from elkm1_lib.const import (ElkRPStatus, SettingFormat, ZoneLogicalStatus,
+                             ZonePhysicalStatus, ZoneType)
+from elkm1_lib.util import pretty_const
 
 DEPENDENCIES = ['elkm1']
 
+_ZONE_ICONS = {
+    ZoneType.FIRE_ALARM.value: 'fire',
+    ZoneType.FIRE_VERIFIED.value: 'fire',
+    ZoneType.FIRE_SUPERVISORY.value: 'fire',
+    ZoneType.KEYFOB.value: 'key',
+    ZoneType.NON_ALARM.value: 'alarm-off',
+    ZoneType.MEDICAL_ALARM.value: 'medical-bag',
+    ZoneType.POLICE_ALARM.value: 'alarm-light',
+    ZoneType.POLICE_NO_INDICATION.value: 'alarm-light',
+    ZoneType.KEY_MOMENTARY_ARM_DISARM.value: 'power',
+    ZoneType.KEY_MOMENTARY_ARM_AWAY.value: 'power',
+    ZoneType.KEY_MOMENTARY_ARM_STAY.value: 'power',
+    ZoneType.KEY_MOMENTARY_DISARM.value: 'power',
+    ZoneType.KEY_ON_OFF.value: 'toggle-switch',
+    ZoneType.MUTE_AUDIBLES.value: 'volume-mute',
+    ZoneType.POWER_SUPERVISORY.value: 'power-plug',
+    ZoneType.TEMPERATURE.value: 'thermometer-lines',
+    ZoneType.ANALOG_ZONE.value: 'speedometer',
+    ZoneType.PHONE_KEY.value: 'phone-classic',
+    ZoneType.INTERCOM_KEY.value: 'deskphone'
+}
 _LOGGER = logging.getLogger(__name__)
 
 
+# pylint: disable=unused-argument
 @asyncio.coroutine
-def async_setup_platform(hass, config: ConfigType,
-                   async_add_devices: Callable[[list], None], discovery_info=[]):
+def async_setup_platform(hass, config, async_add_devices, discovery_info):
     """Setup the Elk sensor platform."""
+
     elk = hass.data['elkm1']['connection']
-    elk_config = hass.data['elkm1']['config']
-    discovered_devices = hass.data['elkm1']['discovered_devices']
-    #if elk is None:
-    #    _LOGGER.error('Elk is None')
-    #    return False
-    #if not elk.connected:
-    #    _LOGGER.error('A connection has not been made to the Elk panel.')
-    #    return False
-    devices = []
-    from elkm1.zones import Zone as ElkZone
-    from elkm1.thermostats import Thermostat as ElkThermostat
-    from elkm1.keypads import Keypad as ElkKeypad
-    from elkm1.counters import Counter as ElkCounter
-    from elkm1.settings import Setting as ElkSetting
-    from elkm1.panel import Panel as ElkPanel
-
-    # If no discovery info was passed in, discover automatically
-    if len(discovery_info) == 0:
-        # Gather panel
-        discovery_info.append([elk.panel, elk_config['panel']['shown'][0]])
-        # Gather zones
-        if elk_config['zone']['enabled']:
-            for element in elk.zones:
-                if element:
-                    if elk_config['zone']['included'][element._index] is True:
-                        discovery_info.append([element, elk_config['zone']['shown'][element._index]])
-        # Gather Keypads
-        if elk_config['keypad']['enabled']:
-            for element in elk.keypads:
-                if element:
-                    if elk_config['keypad']['included'][element._index] is True:
-                        discovery_info.append([element, elk_config['keypad']['shown'][element._index]])
-        # Gather Thermostats
-        if elk_config['thermostat']['enabled']:
-            for element in elk.thermostats:
-                if element:
-                    if elk_config['thermostat']['included'][element._index] is True:
-                        discovery_info.append([element, elk_config['thermostat']['shown'][element._index]])
-        # Gather Counters
-        if elk_config['counter']['enabled']:
-            for element in elk.counters:
-                if element:
-                    if elk_config['counter']['included'][element._index] is True:
-                        discovery_info.append([element, elk_config['counter']['shown'][element._index]])
-        # Gather Settings
-        if elk_config['setting']['enabled']:
-            for element in elk.settings:
-                if element:
-                    if elk_config['setting']['included'][element._index] is True:
-                        discovery_info.append([element, elk_config['setting']['shown'][element._index]])
-    # If discovery info was passed in, check if we want to include it
-    #else:
-    #    for element in discovery_info:
-    #        if element.included is True and element.enabled is True:
-    #            continue
-    #        else:
-    #            discovery_info.remove(element)
-    # Add discovered devices
-    element_name = ''
-    for element in discovery_info:
-        if isinstance(element[0], ElkZone) or isinstance(element[0], ElkKeypad) or\
-        isinstance(element[0], ElkThermostat) or isinstance(element[0], ElkCounter) or\
-        isinstance(element[0], ElkSetting) or isinstance(element[0], ElkPanel):
-            element_name = 'sensor.' + 'elkm1_' + element[0].default_name('_')
-            if element_name not in discovered_devices:
-                _LOGGER.debug('Loading Elk %s: %s', element[0].__class__.__name__, element[0].name)
-                device = ElkSensorDevice(element[0], elk, hass, element[1])
-                discovered_devices[element_name] = device
-                devices.append(device)
-            else:
-                _LOGGER.debug('Skipping already loaded Elk %s: %s', element[0].__class__.__name__, element[0].name)
-        else:
-            continue
-
+    devices = create_elk_devices(hass, [elk.panel],
+                                 'panel', ElkPanel, [])
+    devices = create_elk_devices(hass, elk.zones,
+                                 'zone', ElkZone, devices)
+    devices = create_elk_devices(hass, elk.keypads,
+                                 'keypad', ElkKeypad, devices)
+    devices = create_elk_devices(hass, elk.thermostats,
+                                 'thermostat', ElkThermostat, devices)
+    devices = create_elk_devices(hass, elk.counters,
+                                 'counter', ElkCounter, devices)
+    devices = create_elk_devices(hass, elk.settings,
+                                 'setting', ElkSetting, devices)
     async_add_devices(devices, True)
     return True
 
 
-class ElkSensorDevice(Entity):
-    """Elk device as Sensor."""
-
-    TYPE_UNDEFINED = 0
-    TYPE_PANEL = 1
-    TYPE_ZONE = 2
-    TYPE_ZONE_TEMP = 3
-    TYPE_ZONE_VOLTAGE = 4
-    TYPE_KEYPAD = 5
-    TYPE_THERMOSTAT = 6
-    TYPE_COUNTER = 7
-    TYPE_SETTING = 8
-
-    def __init__(self, device, elk, hass, show_override):
-        """Initialize device sensor."""
-        from elkm1.const import ZoneType, ZoneLogicalStatus, ZonePhysicalStatus
-        from elkm1.zones import Zone as ElkZone
-        from elkm1.thermostats import Thermostat as ElkThermostat
-        from elkm1.keypads import Keypad as ElkKeypad
-        from elkm1.counters import Counter as ElkCounter
-        from elkm1.settings import Setting as ElkSetting
-        from elkm1.panel import Panel as ElkPanel
-        self._elk = elk
-        self._type = None
-        self._hidden = True
-        self._element = device
-        self._last_user_name = None
-        self._last_user_num = None
-        self._last_user_at = 0
-        self._area = None
-        self._show_override = show_override
-
-        self._name = 'elkm1_' + self._element.default_name('_').lower()
-        if isinstance(device, ElkZone):
-            # If our device is a Zone, what kind?
-            if device.definition == ZoneType.TEMPERATURE.value:
-                # Temperature Zone
-                self._type = self.TYPE_ZONE_TEMP
-            elif device.definition == ZoneType.ANALOG_ZONE.value:
-                # Analog voltage Zone
-                self._type = self.TYPE_ZONE_VOLTAGE
-            else:
-                # Any other kind of Zone
-                self._type = self.TYPE_ZONE
-        if isinstance(device, ElkKeypad):
-            # Keypad sensor
-            self._type = self.TYPE_KEYPAD
-        if isinstance(device, ElkThermostat):
-            # Thermostat sensor
-            self._type = self.TYPE_THERMOSTAT
-        if isinstance(device, ElkCounter):
-            # Counter sensor
-            self._type = self.TYPE_COUNTER
-        if isinstance(device, ElkSetting):
-            # Setting sensor
-            self._type = self.TYPE_SETTING
-        if isinstance(device, ElkPanel):
-            # Panel sensor
-            self._type = self.TYPE_PANEL
-        self.entity_id = 'sensor.' + self._name
-        self._state = None
-        #if hasattr(self._element, '_temp_enabled'):
-        #    self._hidden = not self._element.temp_enabled
-        #else:
-        #    self._hidden = not self._element.enabled
-        self._icon = {
-            ZoneType.DISABLED.value : '',
-            ZoneType.BURGLAR_ENTRY_EXIT_1.value : 'alarm-bell',
-            ZoneType.BURGLAR_ENTRY_EXIT_2.value : 'alarm-bell',
-            ZoneType.BURGLAR_PERIMETER_INSTANT.value : 'alarm-bell',
-            ZoneType.BURGLAR_INTERIOR.value : 'alarm-bell',
-            ZoneType.BURGLAR_INTERIOR_FOLLOWER.value : 'alarm-bell',
-            ZoneType.BURGLAR_INTERIOR_NIGHT.value : 'alarm-bell',
-            ZoneType.BURGLAR_INTERIOR_NIGHT_DELAY.value : 'alarm-bell',
-            ZoneType.BURGLAR24_HOUR.value : 'alarm-bell',
-            ZoneType.BURGLAR_BOX_TAMPER.value : 'alarm-bell',
-            ZoneType.FIRE_ALARM.value : 'fire',
-            ZoneType.FIRE_VERIFIED.value : 'fire',
-            ZoneType.FIRE_SUPERVISORY.value : 'fire',
-            ZoneType.AUX_ALARM_1.value : 'alarm-bell',
-            ZoneType.AUX_ALARM_2.value : 'alarm-bell',
-            ZoneType.KEYFOB.value : 'key',
-            ZoneType.NON_ALARM.value : 'alarm-off',
-            ZoneType.CARBON_MONOXIDE.value : 'alarm-bell',
-            ZoneType.EMERGENCY_ALARM.value : 'alarm-bell',
-            ZoneType.FREEZE_ALARM.value : 'alarm-bell',
-            ZoneType.GAS_ALARM.value : 'alarm-bell',
-            ZoneType.HEAT_ALARM.value : 'alarm-bell',
-            ZoneType.MEDICAL_ALARM.value : 'medical-bag',
-            ZoneType.POLICE_ALARM.value : 'alarm-light',
-            ZoneType.POLICE_NO_INDICATION.value : 'alarm-light',
-            ZoneType.WATER_ALARM.value : 'alarm-bell',
-            ZoneType.KEY_MOMENTARY_ARM_DISARM.value : 'power',
-            ZoneType.KEY_MOMENTARY_ARM_AWAY.value : 'power',
-            ZoneType.KEY_MOMENTARY_ARM_STAY.value : 'power',
-            ZoneType.KEY_MOMENTARY_DISARM.value : 'power',
-            ZoneType.KEY_ON_OFF.value : 'toggle-switch',
-            ZoneType.MUTE_AUDIBLES.value : 'volume-mute',
-            ZoneType.POWER_SUPERVISORY.value : 'power-plug',
-            ZoneType.TEMPERATURE.value : 'thermometer-lines',
-            ZoneType.ANALOG_ZONE.value : 'speedometer',
-            ZoneType.PHONE_KEY.value : 'phone-classic',
-            ZoneType.INTERCOM_KEY.value : 'deskphone'
-            }
-        self._definition_temperature = ZoneType.TEMPERATURE.value
-        self._element.add_callback(self.trigger_update)
-        self.hass = hass
-
-    @property
-    def temperature_unit(self):
-        """Return the unit of measurement."""
-        return TEMP_FAHRENHEIT
-
-    @property
-    def name(self):
-        """Return the name of the sensor."""
-        friendly_name = self._element.name
-        ## Adjust friendly name as applicable
-        #if (self._type == self.TYPE_KEYPAD) or (
-        #        self._type == self.TYPE_THERMOSTAT):
-        #    friendly_name = friendly_name + ' Temp'
-        return friendly_name
-
-    @property
-    def state(self):
-        """Return the state of the sensor."""
-        return self._state
-
-    @property
-    def unit_of_measurement(self) -> str:
-        """Unit of measurement, if applicable."""
-        if (self._type == self.TYPE_ZONE_TEMP) or (
-                self._type == self.TYPE_KEYPAD) or (
-                    self._type == self.TYPE_THERMOSTAT):
-            return self.temperature_unit
-        elif self._type == self.TYPE_ZONE_VOLTAGE:
-            # Analog voltage
-            return 'volts'
-        else:
-            # No UOM for other sensors
-            return None
+class ElkPanel(ElkDeviceBase):
+    """Handle an Elk Panel."""
+    def __init__(self, device, hass, config):
+        ElkDeviceBase.__init__(self, 'sensor', device, hass, config)
 
     @property
     def icon(self):
-        """Icon to use in the frontend, if any."""
-        if self._type in [self.TYPE_ZONE_TEMP, self.TYPE_KEYPAD, self.TYPE_THERMOSTAT]:
-            return 'mdi:' + self._icon[self._definition_temperature]
-        if self._type in [self.TYPE_ZONE, self.TYPE_ZONE_VOLTAGE]:
-            return 'mdi:' + self._icon[self._element.definition]
-        if self._type in [self.TYPE_COUNTER, self.TYPE_SETTING]:
-            return 'mdi:numeric'
-        if self._type == self.TYPE_PANEL:
-            return None
-        return None
-
-    @property
-    def should_poll(self) -> bool:
-        """Return whether this device should be polled."""
-        return False
-
-    @property
-    def hidden(self):
-        """Return the name of the sensor."""
-        if self._show_override is None:
-            return self._hidden
-        return not self._show_override
+        """Icon to use in the frontend."""
+        return "mdi:home"
 
     @property
     def device_state_attributes(self):
-        """Return the state attributes of the sensor."""
-        from elkm1.const import ZoneType, ZoneLogicalStatus, ZonePhysicalStatus, SettingFormat, ElkRPStatus
-        from elkm1.util import pretty_const
-        attributes = {
-    #        'hidden': self._hidden,
-            }
-    #    # If we're some kind of Zone, add Zone attributes
-        if self._type == self.TYPE_ZONE:
-            attributes['Physical Status'] = pretty_const(ZonePhysicalStatus(self._element.physical_status).name)
-    #        attributes['State'] = self._element.state_pretty()
-    #        attributes['Alarm'] = self._element.alarm_pretty()
-            attributes['Definition'] = pretty_const(ZoneType(self._element.definition).name)
-    #    # If necessary, hide
-    #    # TODO : Use custom state card or in some other way make use of
-    #    #        input_number / etc
-    #    if (self._type == self.TYPE_COUNTER) or (
-    #            self._type == self.TYPE_SETTING):
-    #        attributes['hidden'] = True
-        if self._area is not None:
-            attributes['Area'] = self._area
+        """Attributes of the sensor."""
+        attrs = self.initial_attrs()
+        attrs['remote_programming_status'] = ElkRPStatus(
+            self._element.remote_programming_status).name.lower()
+        attrs['system_trouble_status'] = self._element.system_trouble_status
+        return attrs
 
-        if self._type == self.TYPE_KEYPAD:
-            attributes.update({'Last User Name': None, 'Last User Number': None, 'Last User At': None})
-            if self._last_user_name:
-                attributes['Last User Name'] = self._last_user_name
-            if self._last_user_num:
-                attributes['Last User Number'] = self._last_user_num
-            if self._last_user_at:
-                attributes['Last User At'] = self._last_user_at
-        if self._type == self.TYPE_SETTING:
-            attributes['Value Format'] = None
-            if self._element.value_format:
-                attributes['Value Format'] = pretty_const(SettingFormat(self._element.value_format).name)
-        if self._type == self.TYPE_THERMOSTAT:
-            attributes['Humidity'] = None
-            if self._element.humidity:
-                attributes['Humidity'] = self._element.humidity
-        if self._type == self.TYPE_PANEL:
-            if self._element.elkm1_version:
-                attributes['Elk M1 Version'] = self._element.elkm1_version
-            if self._element.elkm1_version:
-                attributes['Elk M1XEP Version'] = self._element.elkm1_version
-            if self._element.real_time_clock:
-                attributes['Real Time Clock'] = self._element.real_time_clock
-            if self._element.remote_programming_status is not None:
-                attributes['ElkRP'] = pretty_const(ElkRPStatus(self._element.remote_programming_status).name)
-        return attributes
-
-    @callback
-    def trigger_update(self, attribute, value):
-        """Target of PyElk callback."""
-        event_data = {
-                'type': '',
-                'area': 0,
-                'number': self._element._index + 1,
-                'name': self._element.name,
-                'attribute': attribute
-            }
-        event_send = False
-        if self._type in [self.TYPE_KEYPAD, self.TYPE_ZONE, self.TYPE_ZONE_TEMP, self.TYPE_ZONE_VOLTAGE]:
-            event_data['area'] = self._area
-        if self._type in [self.TYPE_ZONE, self.TYPE_ZONE_TEMP, self.TYPE_ZONE_VOLTAGE]:
-            event_data['type'] = 'zone'
-        if self._type == self.TYPE_KEYPAD:
-            event_data['type'] = 'keypad'
-        if attribute == 'last_user':
-            event_send = True
-            self._last_user_at = time.time()
-            self._last_user_num = value + 1
-            self._last_user_name = self._element._elk.users[value].name
-            event_data['user_at'] = self._last_user_at
-            event_data['user_num'] = self._last_user_num,
-            event_data['user_name'] = self._last_user_name
-        if attribute == 'area':
-            event_send = True
-            self._area = self._element.area + 1
-            event_data['area'] = self._area
-        if event_send and self.hass and event_data['type'] != '':
-            self.hass.bus.fire('elkm1_sensor_event', event_data)
-        if self.hass:
-            self.async_schedule_update_ha_state(True)
-
-    @asyncio.coroutine
-    def async_update(self):
-        """Get the latest data and update the state."""
-        from elkm1.const import ZoneType, ZoneLogicalStatus, ZonePhysicalStatus
-        from elkm1.util import pretty_const
-        # Set state according to device type
-        state = None
-        if self._type in [self.TYPE_KEYPAD, self.TYPE_ZONE, self.TYPE_ZONE_TEMP, self.TYPE_ZONE_VOLTAGE]:
-            if self._element.area is not None and self._area is None:
-                self._area = self._element.area + 1
-                event_data = {
-                    'type': '',
-                    'area': self._area,
-                    'number': self._element._index + 1,
-                    'name': self._element.name,
-                    'attribute': 'area'
-                    }
-                if self._type == self.TYPE_KEYPAD:
-                    event_data['type'] = 'keypad'
-                else:
-                    event_data['type'] = 'zone'
-                self.hass.bus.fire('elkm1_sensor_event', event_data)
-        if self._type == self.TYPE_ZONE:
-            state = pretty_const(ZoneLogicalStatus(self._element.logical_status).name)
-            self._hidden = self._element.definition == ZoneType.DISABLED.value
-        if self._type == self.TYPE_ZONE_TEMP:
-            if self._element.temperature and self._element.temperature > -60:
-                state = self._element.temperature
-                self._hidden = False
-            else:
-                self._hidden = True
-        if self._type == self.TYPE_KEYPAD:
-            if self._element.temperature and self._element.temperature > -40:
-                state = self._element.temperature
-                self._hidden = False
-            else:
-                self._hidden = True
-        if self._type == self.TYPE_THERMOSTAT:
-            if self._element.current_temp and self._element.current_temp > 0:
-                state = self._element.current_temp
-                self._hidden = False
-            else:
-                self._hidden = True
-        if self._type == self.TYPE_ZONE_VOLTAGE:
-            state = self._element.voltage
-            self._hidden = False
-        if self._type in [self.TYPE_COUNTER, self.TYPE_SETTING]:
-            state = self._element.value
-        if self._type == self.TYPE_PANEL:
-            self._hidden = False
-            if self._element._elk._conn is not None:
-                if self._element.remote_programming_status:
-                    state = 'Paused'
-                else:
-                    state = 'Normal'
-            else:
-                state = 'Disconnected'
-        if state is not None:
-            self._state = state
+    # pylint: disable=unused-argument
+    def _element_changed(self, element, changeset):
+        if self._elk.is_connected():
+            self._state = 'Paused' if self._element.remote_programming_status \
+                else 'Connected'
         else:
-            self._state = STATE_UNKNOWN
+            self._state = 'Disconnected'
+
+
+class ElkKeypad(ElkDeviceBase):
+    """Handle an Elk Keypad."""
+    def __init__(self, device, hass, config):
+        ElkDeviceBase.__init__(self, 'sensor', device, hass, config)
+        self._last_user_time = 0
+
+    @property
+    def temperature_unit(self):
+        """The temperature scale."""
+        return TEMP_FAHRENHEIT
+
+    @property
+    def icon(self):
+        """Icon to use in the frontend."""
+        return 'mdi:thermometer-lines'
+
+    @property
+    def device_state_attributes(self):
+        """Attributes of the sensor."""
+        attrs = self.initial_attrs()
+        attrs['last_user'] = self._element.last_user + 1
+        attrs['last_user_name'] = \
+            self._elk.users[self._element.last_user].name \
+            if self._element.last_user >= 0 else ""
+        attrs['last_user_time'] = self._last_user_time
+        attrs['temperature'] = self._element.temperature
+        attrs['area'] = self._element.area + 1
+        return attrs
+
+    # pylint: disable=unused-argument
+    def _element_changed(self, element, changeset):
+        self._temperature_to_state(self._element.temperature, -40)
+        if changeset.get('last_user'):
+            self._last_user_time = time.time()
+
+
+class ElkZone(ElkDeviceBase):
+    """Handle an Elk Zone."""
+    def __init__(self, device, hass, config):
+        ElkDeviceBase.__init__(self, 'sensor', device, hass, config)
+
+    @property
+    def icon(self):
+        """Icon to use in the frontend."""
+        return 'mdi:' + _ZONE_ICONS.get(self._element.definition, 'alarm-bell')
+
+    @property
+    def device_state_attributes(self):
+        """Attributes of the sensor."""
+        attrs = self.initial_attrs()
+        attrs['physical_status'] = ZonePhysicalStatus(
+            self._element.physical_status).name.lower()
+        attrs['logical_status'] = ZoneLogicalStatus(
+            self._element.logical_status).name.lower()
+        attrs['definition'] = ZoneType(
+            self._element.definition).name.lower()
+        attrs['area'] = self._element.area + 1
+        attrs['bypassed'] = self._element.bypassed
+        attrs['triggered_alarm'] = self._element.triggered_alarm
+        if self._element.definition == ZoneType.TEMPERATURE.value:
+            attrs['temperature'] = self._element.temperature
+        elif self._element.definition == ZoneType.ANALOG_ZONE.value:
+            attrs['voltage'] = self._element.voltage
+        return attrs
+
+    @property
+    def temperature_unit(self):
+        """The temperature scale."""
+        return TEMP_FAHRENHEIT
+
+    @property
+    def unit_of_measurement(self):
+        """Unit of measurement."""
+        if self._element.definition == ZoneType.TEMPERATURE.value:
+            return self.hass.config.units.temperature_unit
+        if self._element.definition == ZoneType.ANALOG_ZONE.value:
+            return 'volts'
+        return None
+
+    # pylint: disable=unused-argument
+    def _element_changed(self, element, changeset):
+        self._hidden = False
+        if self._element.definition == ZoneType.TEMPERATURE.value:
+            self._temperature_to_state(self._element.temperature, -60)
+        elif self._element.definition == ZoneType.ANALOG_ZONE.value:
+            self._state = self._element.voltage
+        else:
+            self._state = pretty_const(ZoneLogicalStatus(
+                self._element.logical_status).name)
+            self._hidden = self._element.definition == ZoneType.DISABLED.value
+
+
+class ElkThermostat(ElkDeviceBase):
+    """Handle an Elk thermostat."""
+    def __init__(self, device, hass, config):
+        ElkDeviceBase.__init__(self, 'sensor', device, hass, config)
+
+    @property
+    def temperature_unit(self):
+        """The temperature scale."""
+        return TEMP_FAHRENHEIT
+
+    @property
+    def icon(self):
+        """Icon to use in the frontend."""
+        return 'mdi:thermometer-lines'
+
+    # pylint: disable=unused-argument
+    def _element_changed(self, element, changeset):
+        self._temperature_to_state(self._element.current_temp, 0)
+
+
+# pylint: disable=too-few-public-methods
+class ElkCounter(ElkDeviceBase):
+    """Handle an Elk Counter."""
+    def __init__(self, device, hass, config):
+        ElkDeviceBase.__init__(self, 'sensor', device, hass, config)
+
+    @property
+    def icon(self):
+        """Icon to use in the frontend."""
+        return 'mdi:numeric'
+
+    # pylint: disable=unused-argument
+    def _element_changed(self, element, changeset):
+        self._state = self._element.value
+
+
+class ElkSetting(ElkDeviceBase):
+    """Handle an Elk setting."""
+    def __init__(self, device, hass, config):
+        ElkDeviceBase.__init__(self, 'sensor', device, hass, config)
+
+    @property
+    def icon(self):
+        """Icon to use in the frontend."""
+        return 'mdi:numeric'
+
+    # pylint: disable=unused-argument
+    def _element_changed(self, element, changeset):
+        self._state = self._element.value
+
+    @property
+    def device_state_attributes(self):
+        """Attributes of the sensor."""
+        attrs = self.initial_attrs()
+        attrs['value_format'] = SettingFormat(
+            self._element.value_format).name.lower()
+        attrs['value'] = self._element.value
+        return attrs
