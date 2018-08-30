@@ -42,6 +42,8 @@ ELK_STATE_TO_HASS_STATE = {
     ArmedStatus.ARMED_TO_VACATION.value:      STATE_ALARM_ARMED_AWAY,
 }
 
+import logging
+_LOGGER = logging.getLogger(__name__)
 
 # pylint: disable=unused-argument
 async def async_setup_platform(hass, config, async_add_devices, discovery_info):
@@ -85,12 +87,14 @@ class ElkArea(ElkDeviceBase, alarm.AlarmControlPanel):
     def _watch_keypad(self, keypad, changeset):
         if keypad.area != self._element.index:
             return
-        for change in changeset:
-            if change[0] == 'last_user':
-                self._changed_by = change[1]
-                self._changed_by_keypad = keypad
-                self._changed_by_time = time.time()
-                self.async_schedule_update_ha_state(True)
+        _LOGGER.warn( "watch keypad1 %d %d %s", self._element.index, keypad.area, changeset)
+        last_user = changeset.get('last_user')
+        if last_user is not None:
+            _LOGGER.warn( "watch keypad2 %d %d %s", self._element.index, keypad.area, changeset)
+            self._changed_by = last_user
+            self._changed_by_keypad = keypad.index
+            self._changed_by_time = time.time()
+            self.async_schedule_update_ha_state(True)
 
     @property
     def code_format(self):
@@ -100,9 +104,16 @@ class ElkArea(ElkDeviceBase, alarm.AlarmControlPanel):
     @property
     def changed_by(self):
         """Return name of last person to make change."""
-        if self._changed_by < 0:
+        if self._changed_by < 0 or self._changed_by > 203:
             return ""
-        return self._elk.users[self._changed_by].name
+        if self._changed_by < self._elk.users.max_elements:
+            return self._elk.users[self._changed_by].name
+        if self._changed_by == 201:
+            return "Program"
+        if self._changed_by == 202:
+            return "Elk RP"
+        if self._changed_by == 203:
+            return "Quick arm"
 
     @property
     def device_state_attributes(self):
@@ -122,8 +133,9 @@ class ElkArea(ElkDeviceBase, alarm.AlarmControlPanel):
         attrs['changed_by_user'] = self._changed_by + 1
         attrs['changed_by_time'] = self._changed_by_time
         attrs['changed_by_keypad'] = self._changed_by_keypad + 1
-        attrs['changed_by_keypad_name'] = self._elk.keypads[
-            self._change_by_keypad] if self._changed_by_keypad >= 0 else ''
+        attrs['changed_by_keypad_name'] = \
+            self._elk.keypads[self._changed_by_keypad].name \
+                if self._changed_by_keypad >= 0 else ''
         return attrs
 
     # pylint: disable=unused-argument
@@ -139,8 +151,6 @@ class ElkArea(ElkDeviceBase, alarm.AlarmControlPanel):
             self._state = STATE_ALARM_PENDING
         else:
             self._state = ELK_STATE_TO_HASS_STATE[self._element.armed_status]
-
-        self._hidden = self._element.is_default_name()
 
     def _entry_exit_timer_is_running(self):
         return self._element.timer1 > 0 or self._element.timer2 > 0

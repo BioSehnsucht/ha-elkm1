@@ -177,7 +177,6 @@ class ElkZone(ElkDeviceBase):
 
     # pylint: disable=unused-argument
     def _element_changed(self, element, changeset):
-        self._hidden = False
         if self._element.definition == ZoneType.TEMPERATURE.value:
             self._temperature_to_state(self._element.temperature, -60)
         elif self._element.definition == ZoneType.ANALOG_ZONE.value:
@@ -185,7 +184,6 @@ class ElkZone(ElkDeviceBase):
         else:
             self._state = pretty_const(ZoneLogicalStatus(
                 self._element.logical_status).name)
-            self._hidden = self._element.definition == ZoneType.DISABLED.value
 
 
 class ElkThermostat(ElkDeviceBase):

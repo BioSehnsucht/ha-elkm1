@@ -92,10 +92,6 @@ class ElkThermostat(ElkDeviceBase, ClimateDevice):
         """Return the precision of the system."""
         return PRECISION_WHOLE
 
-    async def async_update(self):
-        """Get the latest data and update the state."""
-        self._hidden = self._element.is_default_name()
-
     @property
     def unit_of_measurement(self):
         """Return the unit of measurement to display."""

@@ -38,7 +38,6 @@ CONF_ZONE = 'zone'
 CONF_ENABLED = 'enabled'    # True to enable subdomain
 CONF_HIDE = 'hide'
 CONF_SHOW = 'show'
-CONF_LOVELACE = 'lovelace'
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -55,7 +54,6 @@ CONFIG_SCHEMA = vol.Schema({
         vol.Required(CONF_HOST): cv.string,
         vol.Optional(CONF_USERNAME): cv.string,
         vol.Optional(CONF_PASSWORD): cv.string,
-        vol.Optional(CONF_LOVELACE, default=False): cv.boolean,
         vol.Optional(CONF_AREA): CONFIG_SCHEMA_SUBDOMAIN,
         vol.Optional(CONF_COUNTER): CONFIG_SCHEMA_SUBDOMAIN,
         vol.Optional(CONF_KEYPAD): CONFIG_SCHEMA_SUBDOMAIN,
@@ -147,8 +145,6 @@ async def async_setup(hass: HomeAssistant, hass_config: ConfigType) -> bool:
         if username is None or password is None:
             _LOGGER.error('Specify username & password for secure connection')
             return False
-
-    config[CONF_LOVELACE] = config_raw[CONF_LOVELACE]
 
     for item, max_ in CONFIGS.items():
         config[item] = {}
@@ -243,7 +239,3 @@ class ElkDeviceBase(Entity):
     async def async_added_to_hass(self):
         """Register callbacks."""
         self._element.add_callback(self._element_callback)
-
-    async def async_update(self):
-        """Default behaviour is to do nothing, override if need more."""
-        pass
