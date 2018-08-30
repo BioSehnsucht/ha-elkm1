@@ -73,8 +73,7 @@ SUPPORTED_DOMAINS = ['sensor', 'switch', 'alarm_control_panel',
                      'climate', 'light']
 
 
-@asyncio.coroutine
-def async_setup(hass: HomeAssistant, hass_config: ConfigType) -> bool:
+async def async_setup(hass: HomeAssistant, hass_config: ConfigType) -> bool:
     """Set up the Elk M1 platform."""
 
     from elkm1_lib.const import Max
@@ -241,12 +240,10 @@ class ElkDeviceBase(Entity):
             self._state = STATE_UNKNOWN
             self._hidden = True
 
-    @asyncio.coroutine
-    def async_added_to_hass(self):
+    async def async_added_to_hass(self):
         """Register callbacks."""
         self._element.add_callback(self._element_callback)
 
-    @asyncio.coroutine
-    def async_update(self):
+    async def async_update(self):
         """Default behaviour is to do nothing, override if need more."""
         pass

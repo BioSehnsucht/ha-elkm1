@@ -17,8 +17,7 @@ DEPENDENCIES = ['elkm1']
 
 
 # pylint: disable=unused-argument
-@asyncio.coroutine
-def async_setup_platform(hass, config, async_add_devices, discovery_info):
+async def async_setup_platform(hass, config, async_add_devices, discovery_info):
     """Setup the Elk light platform."""
     elk = hass.data['elkm1']['connection']
     async_add_devices(create_elk_devices(hass, elk.lights,
@@ -56,8 +55,7 @@ class ElkLight(ElkDeviceBase, Light):
         """Is there light?"""
         return self._brightness != 0
 
-    @asyncio.coroutine
-    def async_turn_on(self, **kwargs):
+    async def async_turn_on(self, **kwargs):
         """Let there be light!"""
         brightness = kwargs.get(ATTR_BRIGHTNESS, 255)
         level = round(brightness / 2.55)
@@ -70,8 +68,7 @@ class ElkLight(ElkDeviceBase, Light):
         else:
             self._element.turn_on(level)
 
-    @asyncio.coroutine
-    def async_turn_off(self, **kwargs):
+    async def async_turn_off(self, **kwargs):
         """In the darkness..."""
         self._brightness = 0
         self._element.turn_off()

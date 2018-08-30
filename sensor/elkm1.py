@@ -48,8 +48,7 @@ _LOGGER = logging.getLogger(__name__)
 
 
 # pylint: disable=unused-argument
-@asyncio.coroutine
-def async_setup_platform(hass, config, async_add_devices, discovery_info):
+async def async_setup_platform(hass, config, async_add_devices, discovery_info):
     """Setup the Elk sensor platform."""
 
     elk = hass.data['elkm1']['connection']

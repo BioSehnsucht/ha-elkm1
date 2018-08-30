@@ -44,16 +44,14 @@ ELK_STATE_TO_HASS_STATE = {
 
 
 # pylint: disable=unused-argument
-@asyncio.coroutine
-def async_setup_platform(hass, config, async_add_devices, discovery_info):
+async def async_setup_platform(hass, config, async_add_devices, discovery_info):
     """Setup the Elk switch platform."""
 
     elk = hass.data['elkm1']['connection']
     devices = create_elk_devices(hass, elk.areas, 'area', ElkArea, [])
     async_add_devices(devices, True)
 
-    @asyncio.coroutine
-    def async_alarm_service_handler(service):
+    async def async_alarm_service_handler(service):
         """Map services to methods on Alarm."""
         entity_ids = service.data.get(ATTR_ENTITY_ID)
         code = service.data.get(ATTR_CODE)

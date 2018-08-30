@@ -34,8 +34,7 @@ SUPPORT_FLAGS = (
 
 
 # pylint: disable=unused-argument
-@asyncio.coroutine
-def async_setup_platform(hass, config, async_add_devices, discovery_info):
+async def async_setup_platform(hass, config, async_add_devices, discovery_info):
     """Setup the Elk switch platform."""
     elk = hass.data['elkm1']['connection']
     async_add_devices(create_elk_devices(hass, elk.thermostats, 'thermostat',
@@ -93,8 +92,7 @@ class ElkThermostat(ElkDeviceBase, ClimateDevice):
         """Return the precision of the system."""
         return PRECISION_WHOLE
 
-    @asyncio.coroutine
-    def async_update(self):
+    async def async_update(self):
         """Get the latest data and update the state."""
         self._hidden = self._element.is_default_name()
 
