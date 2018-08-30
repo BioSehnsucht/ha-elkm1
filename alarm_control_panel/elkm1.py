@@ -76,6 +76,7 @@ class ElkArea(ElkDeviceBase, alarm.AlarmControlPanel):
         ElkDeviceBase.__init__(self, 'alarm_control_panel', device,
                                hass, config)
         self._changed_by = -1
+        self._changed_by_keypad = -1
         self._changed_by_time = 0
 
         for keypad in self._elk.keypads:
@@ -87,6 +88,7 @@ class ElkArea(ElkDeviceBase, alarm.AlarmControlPanel):
         for change in changeset:
             if change[0] == 'last_user':
                 self._changed_by = change[1]
+                self._changed_by_keypad = keypad
                 self._changed_by_time = time.time()
                 self.async_schedule_update_ha_state(True)
 
@@ -107,17 +109,21 @@ class ElkArea(ElkDeviceBase, alarm.AlarmControlPanel):
         """Attributes of the area."""
         attrs = self.initial_attrs()
         el = self._element
-        attrs['is_exit']: el.is_exit
-        attrs['timer1']: el.timer1
-        attrs['timer2']: el.timer2
-        attrs['state']: self._state
-        attrs['changed_by_time']: self._changed_by_time
+        attrs['is_exit'] = el.is_exit
+        attrs['timer1'] = el.timer1
+        attrs['timer2'] = el.timer2
         attrs['armed_status'] = STATE_UNKNOWN if el.armed_status is None \
             else ArmedStatus(el.armed_status).name.lower()
         attrs['arm_up_state'] = STATE_UNKNOWN if el.arm_up_state is None \
             else ArmUpState(self._element.arm_up_state).name.lower()
         attrs['alarm_state'] = STATE_UNKNOWN if el.alarm_state is None \
             else AlarmState(self._element.alarm_state).name.lower()
+
+        attrs['changed_by_user'] = self._changed_by + 1
+        attrs['changed_by_time'] = self._changed_by_time
+        attrs['changed_by_keypad'] = self._changed_by_keypad + 1
+        attrs['changed_by_keypad_name'] = self._elk.keypads[
+            self._change_by_keypad] if self._changed_by_keypad >= 0 else ''
         return attrs
 
     # pylint: disable=unused-argument
