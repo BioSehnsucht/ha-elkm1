@@ -127,8 +127,10 @@ class ElkArea(ElkDeviceBase, alarm.AlarmControlPanel):
         elif self._area_is_in_alarm_state():
             self._state = STATE_ALARM_TRIGGERED
         elif self._entry_exit_timer_is_running():
-            self._state = STATE_ALARM_ARMING \
-                if self._element.is_exit else STATE_ALARM_PENDING
+            # Fix this when put into HASS
+            # self._state = STATE_ALARM_ARMING \
+            #     if self._element.is_exit else STATE_ALARM_PENDING
+            self._state = STATE_ALARM_PENDING
         else:
             self._state = ELK_STATE_TO_HASS_STATE[self._element.armed_status]
 
