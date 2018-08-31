@@ -42,8 +42,6 @@ ELK_STATE_TO_HASS_STATE = {
     ArmedStatus.ARMED_TO_VACATION.value:      STATE_ALARM_ARMED_AWAY,
 }
 
-import logging
-_LOGGER = logging.getLogger(__name__)
 
 # pylint: disable=unused-argument
 async def async_setup_platform(hass, config, async_add_devices, discovery_info):
@@ -87,10 +85,8 @@ class ElkArea(ElkDeviceBase, alarm.AlarmControlPanel):
     def _watch_keypad(self, keypad, changeset):
         if keypad.area != self._element.index:
             return
-        _LOGGER.warn( "watch keypad1 %d %d %s", self._element.index, keypad.area, changeset)
         last_user = changeset.get('last_user')
         if last_user is not None:
-            _LOGGER.warn( "watch keypad2 %d %d %s", self._element.index, keypad.area, changeset)
             self._changed_by = last_user
             self._changed_by_keypad = keypad.index
             self._changed_by_time = time.time()
