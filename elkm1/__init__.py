@@ -11,8 +11,9 @@ import asyncio
 import logging
 
 import voluptuous as vol
-from homeassistant.const import (CONF_EXCLUDE, CONF_HOST, CONF_INCLUDE,
-                                 CONF_PASSWORD, CONF_USERNAME, STATE_UNKNOWN)
+from homeassistant.const import (ATTR_ENTITY_ID, CONF_EXCLUDE,
+                                 CONF_HOST, CONF_INCLUDE, CONF_PASSWORD,
+                                 CONF_USERNAME, STATE_UNKNOWN)
 from homeassistant.core import HomeAssistant, callback  # noqa
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import discovery
@@ -162,7 +163,6 @@ async def async_setup(hass: HomeAssistant, hass_config: ConfigType) -> bool:
     for component in SUPPORTED_DOMAINS:
         hass.async_add_job(
             discovery.async_load_platform(hass, component, DOMAIN, None, None))
-
     return True
 
 
@@ -174,6 +174,18 @@ def create_elk_devices(hass, elk_elements, element_type, class_, devices):
             devices.append(class_(element, hass, config[element_type]))
     return devices
 
+# def register_elk_service(hass, domain, service_name, service_handler, schema):
+#     """Map services to methods."""
+#     async def async_service_handler(service):
+#         for entity_id in service.data.get(ATTR_ENTITY_ID, []):
+#             entity = hass.data[DOMAIN].get(entity_id)
+#             if entity:
+#                 handler = getattr(entity, service_handler)
+#                 if handler:
+#                     await handler(service.service, service.data)
+
+#     hass.services.async_register(domain, service_name,
+#                                  async_service_handler, schema=schema)
 
 class ElkDeviceBase(Entity):
     """Sensor devices on the Elk."""
@@ -211,7 +223,7 @@ class ElkDeviceBase(Entity):
 
     @property
     def device_state_attributes(self):
-        """Attributes of the element."""
+        """Default attributes of the element, if not overridden."""
         return {**self._element.as_dict(), **self.initial_attrs()}
 
     def initial_attrs(self):
@@ -227,15 +239,7 @@ class ElkDeviceBase(Entity):
         self._element_changed(element, changeset)
         self.async_schedule_update_ha_state(True)
 
-    def _temperature_to_state(self, temperature, undefined_temperature):
-        """Helper to convert a temperature to a state."""
-        if temperature > undefined_temperature:
-            self._state = temperature
-            self._hidden = False
-        else:
-            self._state = STATE_UNKNOWN
-            self._hidden = True
-
     async def async_added_to_hass(self):
-        """Register callbacks."""
+        """Register callback for ElkM1 changes and update entity state."""
         self._element.add_callback(self._element_callback)
+        self._element_callback(self._element, {})

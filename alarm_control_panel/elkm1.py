@@ -8,6 +8,8 @@ https://home-assistant.io/components/alarm_control_panel.elkm1/
 import asyncio
 import time
 
+import voluptuous as vol
+import homeassistant.helpers.config_validation as cv
 import homeassistant.components.alarm_control_panel as alarm
 from homeassistant.const import (ATTR_CODE, ATTR_ENTITY_ID,
                                  STATE_ALARM_ARMED_AWAY,
@@ -16,21 +18,31 @@ from homeassistant.const import (ATTR_CODE, ATTR_ENTITY_ID,
                                  STATE_ALARM_DISARMED, STATE_ALARM_DISARMING,
                                  STATE_ALARM_PENDING, STATE_ALARM_TRIGGERED,
                                  STATE_UNKNOWN)
+from homeassistant.helpers.entity_component import EntityComponent
 
-from custom_components.elkm1 import ElkDeviceBase, create_elk_devices
+from custom_components.elkm1 import DOMAIN, ElkDeviceBase, create_elk_devices
 from elkm1_lib.const import AlarmState, ArmedStatus, ArmLevel, ArmUpState
 
-DEPENDENCIES = ['elkm1']
+DEPENDENCIES = [DOMAIN]
 
 STATE_ALARM_ARMED_VACATION = 'armed_vacation'
 STATE_ALARM_ARMED_HOME_INSTANT = 'armed_home_instant'
 STATE_ALARM_ARMED_NIGHT_INSTANT = 'armed_night_instant'
 
 SERVICE_TO_ELK = {
-    'alarm_arm_vacation': ArmLevel.ARMED_VACATION.value,
-    'alarm_arm_home_instant': ArmLevel.ARMED_STAY_INSTANT.value,
-    'alarm_arm_night_instant': ArmLevel.ARMED_NIGHT_INSTANT.value,
+    'alarm_arm_vacation': 'async_alarm_arm_vacation',
+    'alarm_arm_home_instant': 'async_alarm_arm_home_instant',
+    'alarm_arm_night_instant': 'async_alarm_arm_night_instant',
 }
+
+DISPLAY_MESSAGE_SERVICE_SCHEMA = vol.Schema({
+    vol.Optional(ATTR_ENTITY_ID): cv.entity_ids,
+    vol.Optional('clear', default=2): vol.In([0, 1, 2]),
+    vol.Optional('beep', default=False): cv.boolean,
+    vol.Optional('timeout', default=0): vol.Range(min=0, max=65535),
+    vol.Optional('line1', default=''): cv.string,
+    vol.Optional('line2', default=''): cv.string,
+})
 
 ELK_STATE_TO_HASS_STATE = {
     ArmedStatus.DISARMED.value:               STATE_ALARM_DISARMED,
@@ -45,31 +57,25 @@ ELK_STATE_TO_HASS_STATE = {
 
 # pylint: disable=unused-argument
 async def async_setup_platform(hass, config, async_add_devices, discovery_info):
-    """Setup the Elk switch platform."""
+    """Setup the ElkM1 alarm platform."""
 
-    elk = hass.data['elkm1']['connection']
+    elk = hass.data[DOMAIN]['connection']
     devices = create_elk_devices(hass, elk.areas, 'area', ElkArea, [])
     async_add_devices(devices, True)
 
-    async def async_alarm_service_handler(service):
-        """Map services to methods on Alarm."""
-        entity_ids = service.data.get(ATTR_ENTITY_ID)
-        code = service.data.get(ATTR_CODE)
-        target_devices = [device for device in devices
-                          if device.entity_id in entity_ids]
+    for service, method in SERVICE_TO_ELK.items():
+        hass.data[alarm.DOMAIN].async_register_entity_service(
+            service, alarm.ALARM_SERVICE_SCHEMA, method)
 
-        for device in target_devices:
-            device.async_alarm_service(service.service, code)
+    hass.data[alarm.DOMAIN].async_register_entity_service(
+        'alarm_display_message', DISPLAY_MESSAGE_SERVICE_SCHEMA,
+        'async_alarm_display_message')
 
-    for service in SERVICE_TO_ELK:
-        hass.services.async_register(alarm.DOMAIN, service,
-                                     async_alarm_service_handler,
-                                     schema=alarm.ALARM_SERVICE_SCHEMA)
     return True
 
 
 class ElkArea(ElkDeviceBase, alarm.AlarmControlPanel):
-    """Representation of an Area / Partition within the Elk M1 alarm panel."""
+    """Representation of an Area / Partition within the ElkM1 alarm panel."""
 
     def __init__(self, device, hass, config):
         """Initialize Area as Alarm Control Panel."""
@@ -141,7 +147,7 @@ class ElkArea(ElkDeviceBase, alarm.AlarmControlPanel):
         elif self._area_is_in_alarm_state():
             self._state = STATE_ALARM_TRIGGERED
         elif self._entry_exit_timer_is_running():
-            # Fix this when put into HASS
+            # TODO: Fix this when put into HASS
             # self._state = STATE_ALARM_ARMING \
             #     if self._element.is_exit else STATE_ALARM_PENDING
             self._state = STATE_ALARM_PENDING
@@ -154,22 +160,35 @@ class ElkArea(ElkDeviceBase, alarm.AlarmControlPanel):
     def _area_is_in_alarm_state(self):
         return self._element.alarm_state >= AlarmState.FIRE_ALARM.value
 
-    def alarm_disarm(self, code=None):
+    async def async_alarm_disarm(self, code=None):
         """Send disarm command."""
         self._element.disarm(int(code))
 
-    def alarm_arm_home(self, code=None):
+    async def async_alarm_arm_home(self, code=None):
         """Send arm home command."""
         self._element.arm(ArmLevel.ARMED_STAY.value, int(code))
 
-    def alarm_arm_away(self, code=None):
+    async def async_alarm_arm_away(self, code=None):
         """Send arm away command."""
         self._element.arm(ArmLevel.ARMED_AWAY.value, int(code))
 
-    def alarm_arm_night(self, code=None):
+    async def async_alarm_arm_night(self, code=None):
         """Send arm away command."""
         self._element.arm(ArmLevel.ARMED_NIGHT.value, int(code))
 
-    def async_alarm_service(self, service, code):
-        """Send arm night instant command."""
-        self._element.arm(SERVICE_TO_ELK[service], int(code))
+    async def async_alarm_arm_home_instant(self, code):
+        """Send arm vacation command."""
+        self._element.arm(ArmLevel.ARMED_STAY_INSTANT.value, int(code))
+
+    async def async_alarm_arm_night_instant(self, code):
+        """Send arm vacation command."""
+        self._element.arm(ArmLevel.ARMED_VACATION.value, int(code))
+
+    async def async_alarm_arm_vacation(self, code):
+        """Send arm vacation command."""
+        self._element.arm(ArmLevel.ARMED_VACATION.value, int(code))
+
+    async def async_alarm_display_message(
+        self, clear, beep, timeout, line1, line2):
+        """Display a message on all keypads for the area."""
+        self._element.display_message(clear, beep, timeout, line1, line2)

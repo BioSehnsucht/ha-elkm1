@@ -21,10 +21,10 @@ from homeassistant.components.climate import (ATTR_TARGET_TEMP_HIGH,
                                               ClimateDevice)
 from homeassistant.const import STATE_ON, STATE_UNKNOWN, TEMP_FAHRENHEIT
 
-from custom_components.elkm1 import ElkDeviceBase, create_elk_devices
+from custom_components.elkm1 import DOMAIN, ElkDeviceBase, create_elk_devices
 from elkm1_lib.const import ThermostatFan, ThermostatMode, ThermostatSetting
 
-DEPENDENCIES = ['elkm1']
+DEPENDENCIES = [DOMAIN]
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -36,7 +36,7 @@ SUPPORT_FLAGS = (
 # pylint: disable=unused-argument
 async def async_setup_platform(hass, config, async_add_devices, discovery_info):
     """Setup the Elk switch platform."""
-    elk = hass.data['elkm1']['connection']
+    elk = hass.data[DOMAIN]['connection']
     async_add_devices(create_elk_devices(hass, elk.thermostats, 'thermostat',
                                          ElkThermostat, []), True)
     return True

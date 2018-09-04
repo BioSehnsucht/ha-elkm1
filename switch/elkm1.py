@@ -10,15 +10,15 @@ import asyncio
 from homeassistant.const import STATE_OFF, STATE_ON
 from homeassistant.helpers.entity import ToggleEntity
 
-from custom_components.elkm1 import ElkDeviceBase, create_elk_devices
+from custom_components.elkm1 import DOMAIN, ElkDeviceBase, create_elk_devices
 
-DEPENDENCIES = ['elkm1']
+DEPENDENCIES = [DOMAIN]
 
 
 # pylint: disable=unused-argument
 async def async_setup_platform(hass, config, async_add_devices, discovery_info):
     """Setup the Elk switch platform."""
-    elk = hass.data['elkm1']['connection']
+    elk = hass.data[DOMAIN]['connection']
     devices = create_elk_devices(hass, elk.tasks, 'task', ElkTask, [])
     devices = create_elk_devices(hass, elk.outputs,
                                  'output', ElkOutput, devices)
