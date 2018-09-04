@@ -22,7 +22,7 @@ from homeassistant.helpers.typing import ConfigType  # noqa
 
 DOMAIN = "elkm1"
 
-REQUIREMENTS = ['elkm1-lib==0.7.7']
+REQUIREMENTS = ['elkm1-lib==0.7.8']
 
 CONF_AREA = 'area'
 CONF_COUNTER = 'counter'
