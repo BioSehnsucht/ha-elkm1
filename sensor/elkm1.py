@@ -18,7 +18,8 @@ from homeassistant.const import (ATTR_ENTITY_ID, STATE_UNKNOWN,
                                  TEMP_FAHRENHEIT)
 import homeassistant.components.sensor as sensor
 
-from custom_components.elkm1 import DOMAIN, ElkDeviceBase, create_elk_devices
+from custom_components.elkm1 import (DOMAIN, create_elk_devices,
+                                     ElkDeviceBase, register_elk_service)
 from elkm1_lib.const import (ElkRPStatus, SettingFormat, ZoneLogicalStatus,
                              ZonePhysicalStatus, ZoneType)
 from elkm1_lib.util import pretty_const
@@ -75,12 +76,10 @@ async def async_setup_platform(hass, config, async_add_devices, discovery_info):
                                  'setting', ElkSetting, devices)
     async_add_devices(devices, True)
 
-    hass.data[sensor.DOMAIN].async_register_entity_service(
-        'sensor_speak_word', SPEAK_SERVICE_SCHEMA,
-        'async_sensor_speak_word')
-    hass.data[sensor.DOMAIN].async_register_entity_service(
-        'sensor_speak_phrase', SPEAK_SERVICE_SCHEMA,
-        'async_sensor_speak_phrase')
+    register_elk_service( hass, sensor.DOMAIN, 'sensor_speak_word',
+        SPEAK_SERVICE_SCHEMA, 'async_sensor_speak_word')
+    register_elk_service( hass, sensor.DOMAIN, 'sensor_speak_phrase',
+        SPEAK_SERVICE_SCHEMA, 'async_sensor_speak_phrase')
 
     return True
 

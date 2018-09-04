@@ -174,18 +174,24 @@ def create_elk_devices(hass, elk_elements, element_type, class_, devices):
             devices.append(class_(element, hass, config[element_type]))
     return devices
 
-# def register_elk_service(hass, domain, service_name, service_handler, schema):
-#     """Map services to methods."""
-#     async def async_service_handler(service):
-#         for entity_id in service.data.get(ATTR_ENTITY_ID, []):
-#             entity = hass.data[DOMAIN].get(entity_id)
-#             if entity:
-#                 handler = getattr(entity, service_handler)
-#                 if handler:
-#                     await handler(service.service, service.data)
+def register_elk_service(hass, domain, service_name, schema, service_handler):
+    """Map services to methods."""
+    async def async_service_handler(service):
+        for entity_id in service.data.get(ATTR_ENTITY_ID, []):
+            entity = hass.data[DOMAIN].get(entity_id)
+            if not entity:
+                continue
 
-#     hass.services.async_register(domain, service_name,
-#                                  async_service_handler, schema=schema)
+            handler = getattr(entity, service_handler)
+            if not handler:
+                continue
+
+            kwargs = {key: val for key, val in service.data.items()
+                    if key != ATTR_ENTITY_ID}
+            await handler(**kwargs)
+
+    hass.services.async_register(
+        domain, service_name, async_service_handler, schema=schema)
 
 class ElkDeviceBase(Entity):
     """Sensor devices on the Elk."""
@@ -243,3 +249,4 @@ class ElkDeviceBase(Entity):
         """Register callback for ElkM1 changes and update entity state."""
         self._element.add_callback(self._element_callback)
         self._element_callback(self._element, {})
+        self._hass.data[DOMAIN][self.entity_id] = self

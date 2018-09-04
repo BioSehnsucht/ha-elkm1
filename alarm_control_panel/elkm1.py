@@ -20,7 +20,8 @@ from homeassistant.const import (ATTR_CODE, ATTR_ENTITY_ID,
                                  STATE_UNKNOWN)
 from homeassistant.helpers.entity_component import EntityComponent
 
-from custom_components.elkm1 import DOMAIN, ElkDeviceBase, create_elk_devices
+from custom_components.elkm1 import (DOMAIN, create_elk_devices,
+                                     ElkDeviceBase, register_elk_service)
 from elkm1_lib.const import AlarmState, ArmedStatus, ArmLevel, ArmUpState
 
 DEPENDENCIES = [DOMAIN]
@@ -64,12 +65,12 @@ async def async_setup_platform(hass, config, async_add_devices, discovery_info):
     async_add_devices(devices, True)
 
     for service, method in SERVICE_TO_ELK.items():
-        hass.data[alarm.DOMAIN].async_register_entity_service(
-            service, alarm.ALARM_SERVICE_SCHEMA, method)
+        register_elk_service(
+            hass, alarm.DOMAIN, service, alarm.ALARM_SERVICE_SCHEMA, method)
 
-    hass.data[alarm.DOMAIN].async_register_entity_service(
-        'alarm_display_message', DISPLAY_MESSAGE_SERVICE_SCHEMA,
-        'async_alarm_display_message')
+    register_elk_service(
+        hass, alarm.DOMAIN, 'alarm_display_message',
+        DISPLAY_MESSAGE_SERVICE_SCHEMA, 'async_alarm_display_message')
 
     return True
 
