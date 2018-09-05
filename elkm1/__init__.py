@@ -1,6 +1,7 @@
 """
 Support the ElkM1 Gold and ElkM1 EZ8 alarm / integration panels.
-Uses https://github.com/BioSehnsucht/pyelk / https://pypi.python.org/pypi/PyElk
+
+Uses https://pypi.org/project/elkm1-lib/
 
 For more details about this platform, please refer to the documentation at
 https://home-assistant.io/components/elkm1/
@@ -10,8 +11,9 @@ import asyncio
 import logging
 
 import voluptuous as vol
-from homeassistant.const import (CONF_EXCLUDE, CONF_HOST, CONF_INCLUDE,
-                                 CONF_PASSWORD, CONF_USERNAME, STATE_UNKNOWN)
+from homeassistant.const import (ATTR_ENTITY_ID, CONF_EXCLUDE,
+                                 CONF_HOST, CONF_INCLUDE, CONF_PASSWORD,
+                                 CONF_USERNAME, STATE_UNKNOWN)
 from homeassistant.core import HomeAssistant, callback  # noqa
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import discovery
@@ -20,7 +22,7 @@ from homeassistant.helpers.typing import ConfigType  # noqa
 
 DOMAIN = "elkm1"
 
-REQUIREMENTS = ['elkm1-lib==0.7.4']
+REQUIREMENTS = ['elkm1-lib==0.7.8']
 
 CONF_AREA = 'area'
 CONF_COUNTER = 'counter'
@@ -37,7 +39,6 @@ CONF_ZONE = 'zone'
 CONF_ENABLED = 'enabled'    # True to enable subdomain
 CONF_HIDE = 'hide'
 CONF_SHOW = 'show'
-CONF_LOVELACE = 'lovelace'
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -54,7 +55,6 @@ CONFIG_SCHEMA = vol.Schema({
         vol.Required(CONF_HOST): cv.string,
         vol.Optional(CONF_USERNAME): cv.string,
         vol.Optional(CONF_PASSWORD): cv.string,
-        vol.Optional(CONF_LOVELACE, default=False): cv.boolean,
         vol.Optional(CONF_AREA): CONFIG_SCHEMA_SUBDOMAIN,
         vol.Optional(CONF_COUNTER): CONFIG_SCHEMA_SUBDOMAIN,
         vol.Optional(CONF_KEYPAD): CONFIG_SCHEMA_SUBDOMAIN,
@@ -72,8 +72,7 @@ SUPPORTED_DOMAINS = ['sensor', 'switch', 'alarm_control_panel',
                      'climate', 'light']
 
 
-@asyncio.coroutine
-def async_setup(hass: HomeAssistant, hass_config: ConfigType) -> bool:
+async def async_setup(hass: HomeAssistant, hass_config: ConfigType) -> bool:
     """Set up the Elk M1 platform."""
 
     from elkm1_lib.const import Max
@@ -148,8 +147,6 @@ def async_setup(hass: HomeAssistant, hass_config: ConfigType) -> bool:
             _LOGGER.error('Specify username & password for secure connection')
             return False
 
-    config[CONF_LOVELACE] = config_raw[CONF_LOVELACE]
-
     for item, max_ in CONFIGS.items():
         config[item] = {}
         try:
@@ -166,7 +163,6 @@ def async_setup(hass: HomeAssistant, hass_config: ConfigType) -> bool:
     for component in SUPPORTED_DOMAINS:
         hass.async_add_job(
             discovery.async_load_platform(hass, component, DOMAIN, None, None))
-
     return True
 
 
@@ -178,6 +174,24 @@ def create_elk_devices(hass, elk_elements, element_type, class_, devices):
             devices.append(class_(element, hass, config[element_type]))
     return devices
 
+def register_elk_service(hass, domain, service_name, schema, service_handler):
+    """Map services to methods."""
+    async def async_service_handler(service):
+        for entity_id in service.data.get(ATTR_ENTITY_ID, []):
+            entity = hass.data[DOMAIN].get(entity_id)
+            if not entity:
+                continue
+
+            handler = getattr(entity, service_handler)
+            if not handler:
+                continue
+
+            kwargs = {key: val for key, val in service.data.items()
+                    if key != ATTR_ENTITY_ID}
+            await handler(**kwargs)
+
+    hass.services.async_register(
+        domain, service_name, async_service_handler, schema=schema)
 
 class ElkDeviceBase(Entity):
     """Sensor devices on the Elk."""
@@ -215,7 +229,7 @@ class ElkDeviceBase(Entity):
 
     @property
     def device_state_attributes(self):
-        """Attributes of the element."""
+        """Default attributes of the element, if not overridden."""
         return {**self._element.as_dict(), **self.initial_attrs()}
 
     def initial_attrs(self):
@@ -231,21 +245,8 @@ class ElkDeviceBase(Entity):
         self._element_changed(element, changeset)
         self.async_schedule_update_ha_state(True)
 
-    def _temperature_to_state(self, temperature, undefined_temperature):
-        """Helper to convert a temperature to a state."""
-        if temperature > undefined_temperature:
-            self._state = temperature
-            self._hidden = False
-        else:
-            self._state = STATE_UNKNOWN
-            self._hidden = True
-
-    @asyncio.coroutine
-    def async_added_to_hass(self):
-        """Register callbacks."""
+    async def async_added_to_hass(self):
+        """Register callback for ElkM1 changes and update entity state."""
         self._element.add_callback(self._element_callback)
-
-    @asyncio.coroutine
-    def async_update(self):
-        """Default behaviour is to do nothing, override if need more."""
-        pass
+        self._element_callback(self._element, {})
+        self._hass.data[DOMAIN][self.entity_id] = self

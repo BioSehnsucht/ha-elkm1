@@ -14,14 +14,24 @@ import asyncio
 import logging
 import time
 
-from homeassistant.const import TEMP_FAHRENHEIT
+from homeassistant.const import (ATTR_ENTITY_ID, STATE_UNKNOWN,
+                                 TEMP_FAHRENHEIT)
+import homeassistant.components.sensor as sensor
 
-from custom_components.elkm1 import ElkDeviceBase, create_elk_devices
+from custom_components.elkm1 import (DOMAIN, create_elk_devices,
+                                     ElkDeviceBase, register_elk_service)
 from elkm1_lib.const import (ElkRPStatus, SettingFormat, ZoneLogicalStatus,
                              ZonePhysicalStatus, ZoneType)
 from elkm1_lib.util import pretty_const
+import voluptuous as vol
+import homeassistant.helpers.config_validation as cv
 
-DEPENDENCIES = ['elkm1']
+DEPENDENCIES = [DOMAIN]
+
+SPEAK_SERVICE_SCHEMA = vol.Schema({
+    vol.Optional(ATTR_ENTITY_ID): cv.entity_ids,
+    vol.Required('number'): vol.Range(min=0, max=999),
+})
 
 _ZONE_ICONS = {
     ZoneType.FIRE_ALARM.value: 'fire',
@@ -48,11 +58,10 @@ _LOGGER = logging.getLogger(__name__)
 
 
 # pylint: disable=unused-argument
-@asyncio.coroutine
-def async_setup_platform(hass, config, async_add_devices, discovery_info):
+async def async_setup_platform(hass, config, async_add_devices, discovery_info):
     """Setup the Elk sensor platform."""
 
-    elk = hass.data['elkm1']['connection']
+    elk = hass.data[DOMAIN]['connection']
     devices = create_elk_devices(hass, [elk.panel],
                                  'panel', ElkPanel, [])
     devices = create_elk_devices(hass, elk.zones,
@@ -66,7 +75,18 @@ def async_setup_platform(hass, config, async_add_devices, discovery_info):
     devices = create_elk_devices(hass, elk.settings,
                                  'setting', ElkSetting, devices)
     async_add_devices(devices, True)
+
+    register_elk_service( hass, sensor.DOMAIN, 'sensor_speak_word',
+        SPEAK_SERVICE_SCHEMA, 'async_sensor_speak_word')
+    register_elk_service( hass, sensor.DOMAIN, 'sensor_speak_phrase',
+        SPEAK_SERVICE_SCHEMA, 'async_sensor_speak_phrase')
+
     return True
+
+
+def temperature_to_state(temperature, undef_temperature):
+    """Helper to convert a temperature to a state."""
+    return temperature if temperature > undef_temperature else STATE_UNKNOWN
 
 
 class ElkPanel(ElkDeviceBase):
@@ -95,6 +115,14 @@ class ElkPanel(ElkDeviceBase):
                 else 'Connected'
         else:
             self._state = 'Disconnected'
+
+    async def async_sensor_speak_word(self, number):
+        """Speak a word on the panel."""
+        self._element.speak_word(number)
+
+    async def async_sensor_speak_phrase(self, number):
+        """Speak a phrase on the panel."""
+        self._element.speak_phrase(number)
 
 
 class ElkKeypad(ElkDeviceBase):
@@ -128,7 +156,7 @@ class ElkKeypad(ElkDeviceBase):
 
     # pylint: disable=unused-argument
     def _element_changed(self, element, changeset):
-        self._temperature_to_state(self._element.temperature, -40)
+        self._state = temperature_to_state(self._element.temperature, -40)
         if changeset.get('last_user'):
             self._last_user_time = time.time()
 
@@ -178,15 +206,13 @@ class ElkZone(ElkDeviceBase):
 
     # pylint: disable=unused-argument
     def _element_changed(self, element, changeset):
-        self._hidden = False
         if self._element.definition == ZoneType.TEMPERATURE.value:
-            self._temperature_to_state(self._element.temperature, -60)
+            self._state = temperature_to_state(self._element.temperature, -60)
         elif self._element.definition == ZoneType.ANALOG_ZONE.value:
             self._state = self._element.voltage
         else:
             self._state = pretty_const(ZoneLogicalStatus(
                 self._element.logical_status).name)
-            self._hidden = self._element.definition == ZoneType.DISABLED.value
 
 
 class ElkThermostat(ElkDeviceBase):
@@ -206,7 +232,7 @@ class ElkThermostat(ElkDeviceBase):
 
     # pylint: disable=unused-argument
     def _element_changed(self, element, changeset):
-        self._temperature_to_state(self._element.current_temp, 0)
+        self._state = temperature_to_state(self._element.temperature, 0)
 
 
 # pylint: disable=too-few-public-methods

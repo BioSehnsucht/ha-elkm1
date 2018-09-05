@@ -10,16 +10,15 @@ import asyncio
 from homeassistant.const import STATE_OFF, STATE_ON
 from homeassistant.helpers.entity import ToggleEntity
 
-from custom_components.elkm1 import ElkDeviceBase, create_elk_devices
+from custom_components.elkm1 import DOMAIN, ElkDeviceBase, create_elk_devices
 
-DEPENDENCIES = ['elkm1']
+DEPENDENCIES = [DOMAIN]
 
 
 # pylint: disable=unused-argument
-@asyncio.coroutine
-def async_setup_platform(hass, config, async_add_devices, discovery_info):
+async def async_setup_platform(hass, config, async_add_devices, discovery_info):
     """Setup the Elk switch platform."""
-    elk = hass.data['elkm1']['connection']
+    elk = hass.data[DOMAIN]['connection']
     devices = create_elk_devices(hass, elk.tasks, 'task', ElkTask, [])
     devices = create_elk_devices(hass, elk.outputs,
                                  'output', ElkOutput, devices)
@@ -43,11 +42,11 @@ class ElkOutput(ElkDeviceBase, ToggleEntity):
         """True if output is on."""
         return self._element.output_on
 
-    def async_turn_on(self, **kwargs):
+    async def async_turn_on(self, **kwargs):
         """Turn on output."""
         self._element.turn_on(0)
 
-    def async_turn_off(self, **kwargs):
+    async def async_turn_off(self, **kwargs):
         """Turn off output."""
         self._element.turn_off()
 
@@ -80,11 +79,11 @@ class ElkTask(ElkDeviceBase, ToggleEntity):
         """True if task in the on state."""
         return False
 
-    def async_turn_on(self, **kwargs):
+    async def async_turn_on(self, **kwargs):
         """Turn on task."""
         self._element.activate()
 
-    def async_turn_off(self, **kwargs):
+    async def async_turn_off(self, **kwargs):
         """
         Turn off task. Tasks aren't actually never turned "on",
         they are just triggered, so their state is always off.
