@@ -1,3 +1,5 @@
+This was merged into homeassistant https://github.com/home-assistant/core soem time ago, no further work occurring here.
+
 # ha-elkm1
 Home Assistant component, platforms for Elk M1 Gold and similar alarm / integration panels
 
